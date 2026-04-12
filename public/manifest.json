@@ -1,0 +1,26 @@
+{
+  "name": "Bot Empire",
+  "short_name": "Bot Empire",
+  "description": "Construis ton agence IA — idle game d'automatisation",
+  "start_url": "/bot-empire/",
+  "display": "standalone",
+  "background_color": "#0a0a0f",
+  "theme_color": "#00ff88",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/bot-empire/icon-192.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/bot-empire/icon-512.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["games", "entertainment"],
+  "lang": "fr"
+}
