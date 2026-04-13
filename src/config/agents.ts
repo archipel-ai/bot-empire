@@ -15,8 +15,8 @@ export const AGENTS: AgentDef[] = [
     description: 'Automatise les tâches répétitives via n8n',
     icon: '🤖',
     baseCost: 10,
-    baseProduction: 0.1,
-    costMultiplier: 1.15,
+    baseProduction: 0.15,     // était 0.1
+    costMultiplier: 1.13,     // était 1.15
   },
   {
     id: 'agent-copy',
@@ -24,8 +24,8 @@ export const AGENTS: AgentDef[] = [
     description: 'Génère du contenu marketing en continu',
     icon: '✍️',
     baseCost: 75,
-    baseProduction: 0.5,
-    costMultiplier: 1.15,
+    baseProduction: 0.8,      // était 0.5
+    costMultiplier: 1.13,
   },
   {
     id: 'agent-analytics',
@@ -33,8 +33,8 @@ export const AGENTS: AgentDef[] = [
     description: 'Analyse les données et optimise les performances',
     icon: '📊',
     baseCost: 500,
-    baseProduction: 2,
-    costMultiplier: 1.15,
+    baseProduction: 3.5,      // était 2
+    costMultiplier: 1.13,
   },
   {
     id: 'agent-audit',
@@ -42,8 +42,8 @@ export const AGENTS: AgentDef[] = [
     description: 'Audite les projets clients, débloque les grands comptes',
     icon: '🔍',
     baseCost: 3_000,
-    baseProduction: 8,
-    costMultiplier: 1.15,
+    baseProduction: 18,       // était 8
+    costMultiplier: 1.13,
   },
   {
     id: 'agent-legal',
@@ -51,8 +51,8 @@ export const AGENTS: AgentDef[] = [
     description: 'CGV, RGPD, conformité — ouvre les marchés publics',
     icon: '⚖️',
     baseCost: 20_000,
-    baseProduction: 25,
-    costMultiplier: 1.15,
+    baseProduction: 60,       // était 25
+    costMultiplier: 1.13,
   },
   {
     id: 'agent-growth',
@@ -60,8 +60,8 @@ export const AGENTS: AgentDef[] = [
     description: 'Cold outreach, partenariats, distribution à grande échelle',
     icon: '🚀',
     baseCost: 150_000,
-    baseProduction: 80,
-    costMultiplier: 1.15,
+    baseProduction: 200,      // était 80
+    costMultiplier: 1.13,
   },
   {
     id: 'agent-supervisor',
@@ -69,7 +69,7 @@ export const AGENTS: AgentDef[] = [
     description: 'Orchestre tous les agents — multiplicateur global ×2',
     icon: '🎯',
     baseCost: 1_000_000,
-    baseProduction: 300,
-    costMultiplier: 1.15,
+    baseProduction: 800,      // était 300
+    costMultiplier: 1.13,
   },
 ];

@@ -18,19 +18,24 @@ export interface EchoState {
 const RECORD_WINDOW_MS  = 30_000; // on mémorise les 30 dernières secondes
 const MIN_CLICKS        = 3;      // minimum pour activer
 const REPLAY_DURATION_S = 60;     // durée du replay
-const COOLDOWN_S        = 120;    // 2 minutes de cooldown
+const BASE_COOLDOWN_S   = 120;    // 2 minutes de cooldown
 
 export class EchoSystem {
   private clickTimestamps: number[] = [];
   private intervals: number[]       = [];
 
-  private active        = false;
-  private replayTimer   = 0;
-  private cooldownTimer = 0;
-  private replayIdx     = 0;
-  private nextClickIn   = 0; // secondes avant le prochain clic auto
+  private active             = false;
+  private replayTimer        = 0;
+  private cooldownTimer      = 0;
+  private replayIdx          = 0;
+  private nextClickIn        = 0; // secondes avant le prochain clic auto
+  private cooldownMultiplier = 1; // modifié par la réputation
 
   // ─── API PUBLIQUE ────────────────────────────────────────────
+
+  setCooldownMultiplier(mult: number): void {
+    this.cooldownMultiplier = mult;
+  }
 
   /** Appelé à chaque clic manuel du joueur. */
   recordClick(): void {
@@ -76,7 +81,7 @@ export class EchoSystem {
     this.replayTimer -= dt;
     if (this.replayTimer <= 0) {
       this.active        = false;
-      this.cooldownTimer = COOLDOWN_S;
+      this.cooldownTimer = BASE_COOLDOWN_S * this.cooldownMultiplier;
       return 0;
     }
 

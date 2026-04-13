@@ -44,6 +44,17 @@
       </div>
     </header>
 
+    <!-- MARCHÉ IA VIVANT — bannière événement -->
+    <div id="market-banner" class="market-banner hidden">
+      <span id="market-banner-icon" class="market-banner-icon"></span>
+      <div class="market-banner-text">
+        <span id="market-banner-name" class="market-banner-name"></span>
+        <span id="market-banner-desc" class="market-banner-desc"></span>
+      </div>
+      <span id="market-banner-effect" class="market-banner-effect"></span>
+      <span id="market-banner-timer" class="market-banner-timer"></span>
+    </div>
+
     <!-- MAIN -->
     <main id="main">
 
@@ -51,9 +62,17 @@
       <aside id="panel-left">
 
         <!-- BUREAU VIRTUEL -->
-        <div id="bureau">
-          <span class="bureau-title">BUREAU VIRTUEL</span>
-          <span class="bureau-count" id="bureau-count">0 agents</span>
+        <div id="bureau" class="stage-chambre">
+          <div class="bureau-header">
+            <span class="bureau-title">BUREAU VIRTUEL</span>
+            <span class="bureau-count" id="bureau-count">0 agents</span>
+          </div>
+          <div class="bureau-floor"></div>
+          <div id="bureau-stage-badge" class="bureau-stage-badge">
+            <span class="stage-icon">🛋️</span>
+            <span class="stage-label">Chambre d'ado</span>
+            <span class="stage-sublabel">Le voyage commence ici</span>
+          </div>
           <div id="bureau-chars"></div>
           <div class="bureau-empty" id="bureau-empty">
             <span class="bureau-empty-icon">🏢</span>
@@ -111,6 +130,20 @@
           </div>
         </div>
 
+        <!-- SAUVEGARDE -->
+        <div class="save-actions">
+          <button id="btn-share" class="btn-save-action btn-share-action" title="Partager mon agence">
+            🔗 Partager
+          </button>
+          <button id="btn-export" class="btn-save-action" title="Exporter la sauvegarde">
+            💾 Exporter
+          </button>
+          <label id="btn-import-label" class="btn-save-action" title="Importer une sauvegarde">
+            📂 Importer
+            <input type="file" id="btn-import" accept=".json" style="display:none" />
+          </label>
+        </div>
+
         <div id="prestige-card" class="prestige-card">
           <div class="prestige-card-title">VENDRE L'AGENCE</div>
           <div class="prestige-progress-wrap">
@@ -119,7 +152,7 @@
             </div>
             <span id="prestige-pct">0%</span>
           </div>
-          <div class="prestige-target" id="prestige-target">Objectif : €1,000,000</div>
+          <div class="prestige-target" id="prestige-target">Objectif : €500,000</div>
           <button id="btn-prestige" class="btn-prestige" disabled>
             Vendre l'Agence (+15% permanent)
           </button>
@@ -141,6 +174,18 @@
             <span>⚙️</span> Upgrades
             <span class="tab-count" id="tab-count-upgrades">0</span>
           </button>
+          <button class="tab" data-tab="contracts">
+            <span>📋</span> Contrats
+            <span class="tab-count tab-count-pulse" id="tab-count-contracts">0</span>
+          </button>
+          <button class="tab" data-tab="reputation">
+            <span>⭐</span> Réputation
+            <span class="tab-count" id="tab-count-reputation">0</span>
+          </button>
+          <button class="tab" data-tab="academy">
+            <span>🎓</span> Academy
+            <span class="tab-count tab-count-pulse" id="tab-count-academy">0</span>
+          </button>
         </nav>
 
         <div id="tab-agents" class="tab-content active">
@@ -151,6 +196,15 @@
         </div>
         <div id="tab-upgrades" class="tab-content">
           <!-- Injecté par Renderer -->
+        </div>
+        <div id="tab-contracts" class="tab-content">
+          <!-- Injecté par ContractSystem -->
+        </div>
+        <div id="tab-reputation" class="tab-content">
+          <!-- Injecté par main.ts -->
+        </div>
+        <div id="tab-academy" class="tab-content">
+          <!-- Injecté par main.ts -->
         </div>
       </section>
 
@@ -187,6 +241,77 @@
       </div>
     </div>
 
+    <!-- TUTORIAL OVERLAY -->
+    <div id="tutorial-overlay" class="overlay hidden" role="dialog" aria-modal="true">
+      <div id="tuto-card" class="tuto-card">
+        <div class="tuto-header">
+          <span id="tuto-step" class="tuto-step">1 / 4</span>
+          <button id="tuto-skip" class="tuto-skip">Passer</button>
+        </div>
+        <div id="tuto-title" class="tuto-title"></div>
+        <p id="tuto-text" class="tuto-text"></p>
+        <button id="tuto-next" class="btn-confirm tuto-next-btn"></button>
+      </div>
+    </div>
+
+    <!-- SHARE MODAL -->
+    <div id="share-overlay" class="overlay hidden" role="dialog">
+      <div class="modal modal-share">
+        <div class="modal-icon">🔗</div>
+        <h2 class="modal-title">PARTAGER MON AGENCE</h2>
+        <p class="modal-subtitle">Ce lien contient ta progression complète. Envoie-le à toi-même pour changer d'appareil, migrer vers la PWA (écran d'accueil iPhone), ou partager tes stats !</p>
+        <div class="share-tip">💡 Sur iPhone : copie ce lien avant d'ajouter à l'écran d'accueil. La PWA et Safari ont des sauvegardes séparées — le cloud Firebase synchronise automatiquement.</div>
+        <div class="share-url-wrap">
+          <input id="share-url-input" class="share-url-input" readonly />
+          <button id="btn-copy-url" class="btn-copy">Copier</button>
+        </div>
+        <div class="share-info-list">
+          <div class="share-info-row share-info-yes">✅ Partagé : progression, agents, €, prestiges</div>
+          <div class="share-info-row share-info-no">🔒 Non partagé : achats, boosters, suppression pubs</div>
+        </div>
+        <button id="btn-share-close" class="btn-cancel" style="width:100%;margin-top:8px">Fermer</button>
+      </div>
+    </div>
+
+    <!-- IMPORT FROM URL MODAL -->
+    <div id="import-url-overlay" class="overlay hidden" role="dialog">
+      <div class="modal modal-import">
+        <div class="modal-icon">📥</div>
+        <h2 class="modal-title">SAUVEGARDE DÉTECTÉE</h2>
+        <p class="modal-subtitle">Ce lien contient une progression. Veux-tu la charger ?</p>
+        <div class="import-stats" id="import-stats"></div>
+        <p class="modal-warning">⚠️ Ta progression actuelle sera remplacée.</p>
+        <div class="modal-actions">
+          <button id="btn-import-url-confirm" class="btn-confirm">Charger cette save</button>
+          <button id="btn-import-url-cancel"  class="btn-cancel">Garder la mienne</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- INCIDENT OVERLAY -->
+    <div id="incident-overlay" class="overlay hidden" role="dialog" aria-modal="true">
+      <div class="modal modal-incident">
+        <div class="incident-header">
+          <span id="incident-urgency" class="incident-urgency">🔴 CRITIQUE</span>
+          <span id="incident-client"  class="incident-client">Client</span>
+        </div>
+        <div class="incident-timer-wrap">
+          <div class="incident-timer-track">
+            <div id="incident-timer-fill" class="incident-timer-fill"></div>
+          </div>
+          <span id="incident-timer-lbl" class="incident-timer-lbl">45s</span>
+        </div>
+        <p id="incident-problem" class="incident-problem"></p>
+        <p id="incident-question" class="incident-question"></p>
+        <div id="incident-answers" class="incident-answers"></div>
+        <div id="incident-result" class="incident-result hidden">
+          <div id="incident-result-icon" class="incident-result-icon"></div>
+          <p id="incident-lesson" class="incident-lesson"></p>
+          <button id="btn-incident-close" class="btn-confirm">Continuer</button>
+        </div>
+      </div>
+    </div>
+
     <!-- OFFLINE EARNINGS OVERLAY -->
     <div id="offline-overlay" class="overlay hidden" role="dialog">
       <div class="modal modal-offline">
@@ -200,6 +325,12 @@
         <button id="btn-offline-close" class="btn-confirm">Encaisser</button>
       </div>
     </div>
+
+    <!-- FAB CLIC (mobile uniquement) -->
+    <button id="click-fab" class="click-fab" aria-label="Exécuter une tâche">
+      <span class="click-fab-icon">⚡</span>
+      <span class="click-fab-value" id="click-fab-value">+€0.10</span>
+    </button>
 
   </div>
   <script type="module" src="/src/main.ts"></script>
