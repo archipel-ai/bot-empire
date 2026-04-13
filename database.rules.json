@@ -1,0 +1,13 @@
+{
+  "rules": {
+    "saves": {
+      "$uid": {
+        ".read":  "$uid === auth.uid",
+        ".write": "$uid === auth.uid",
+        "v1": {
+          ".validate": "newData.hasChildren(['currency', 'totalEarned', 'lastSave'])"
+        }
+      }
+    }
+  }
+}

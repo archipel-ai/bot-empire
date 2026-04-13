@@ -1,5 +1,34 @@
 import { GameState } from '../core/GameState.ts';
 
+// ─── STAGES ───────────────────────────────────────────────────
+
+export interface BureauStage {
+  id:       string;
+  label:    string;
+  sublabel: string;
+  icon:     string;
+}
+
+const STAGES: Array<{ minAgents: number; minPrestige: number } & BureauStage> = [
+  { id: 'chambre',     minAgents: 0,   minPrestige: 0, icon: '🛋️', label: 'Chambre d\'ado',   sublabel: 'Le voyage commence ici' },
+  { id: 'home-office', minAgents: 1,   minPrestige: 0, icon: '🖥️', label: 'Home Office',      sublabel: 'Les premiers projets arrivent' },
+  { id: 'coworking',   minAgents: 10,  minPrestige: 0, icon: '☕', label: 'Espace Coworking', sublabel: 'L\'équipe prend forme' },
+  { id: 'startup',     minAgents: 25,  minPrestige: 0, icon: '🚀', label: 'Locaux Startup',   sublabel: 'On scale !' },
+  { id: 'scale-up',    minAgents: 60,  minPrestige: 0, icon: '🏢', label: 'Scale-up',         sublabel: 'L\'empire se construit' },
+  { id: 'unicorn',     minAgents: 120, minPrestige: 0, icon: '🦄', label: 'Siège Social',     sublabel: 'Niveau licorne !' },
+];
+
+function getStage(totalAgents: number, prestigeCount: number): typeof STAGES[number] {
+  // Chaque prestige réduit les seuils de 20% (cumulatif), pour récompenser la progression
+  const reduction = Math.pow(0.8, prestigeCount);
+  let current = STAGES[0]!;
+  for (const s of STAGES) {
+    const adjustedMin = Math.floor(s.minAgents * reduction);
+    if (totalAgents >= adjustedMin) current = s;
+  }
+  return current;
+}
+
 // ─── CONFIG ───────────────────────────────────────────────────
 
 interface CharConfig {
@@ -79,18 +108,50 @@ const FOUNDER_DIALOGUES = [
 // ─── BUREAU ───────────────────────────────────────────────────
 
 export class Bureau {
-  private container = document.getElementById('bureau-chars')!;
-  private emptyEl   = document.getElementById('bureau-empty')!;
-  private countEl   = document.getElementById('bureau-count')!;
+  private container  = document.getElementById('bureau-chars')!;
+  private emptyEl    = document.getElementById('bureau-empty')!;
+  private countEl    = document.getElementById('bureau-count')!;
+  private bureauEl   = document.getElementById('bureau')!;
+  private stageBadge = document.getElementById('bureau-stage-badge')!;
   private chars: LiveChar[] = [];
   private lastCounts: Record<string, number> = {};
   private founder: LiveChar | null = null;
   private lastPrestigeCount = -1;
+  private currentStageId    = '';
+  onStageChange?: (stage: BureauStage) => void;
 
   update(dt: number, state: GameState): void {
     this.syncFounder(state.prestigeCount);
+    this.syncStage(state);
     this.sync(state);
     this.tick(dt);
+  }
+
+  // ─── STAGE ──────────────────────────────────────────────────
+
+  private syncStage(state: GameState): void {
+    const totalAgents = Object.values(state.agents).reduce((s, a) => s + a.count, 0);
+    const stage = getStage(totalAgents, state.prestigeCount);
+    if (stage.id === this.currentStageId) return;
+
+    const prev = this.currentStageId;
+    this.currentStageId = stage.id;
+
+    // Mise à jour classe CSS sur le bureau
+    if (prev) this.bureauEl.classList.remove(`stage-${prev}`);
+    this.bureauEl.classList.add(`stage-${stage.id}`);
+
+    // Badge
+    this.stageBadge.innerHTML = `<span class="stage-icon">${stage.icon}</span><span class="stage-label">${stage.label}</span><span class="stage-sublabel">${stage.sublabel}</span>`;
+
+    // Flash lumineux + callback notification (seulement si ce n'est pas le premier chargement)
+    if (prev) {
+      const flash = document.createElement('div');
+      flash.className = 'bureau-stage-flash';
+      this.bureauEl.appendChild(flash);
+      setTimeout(() => flash.remove(), 1500);
+      if (this.onStageChange) this.onStageChange(stage);
+    }
   }
 
   // ─── FONDATEUR ──────────────────────────────────────────────

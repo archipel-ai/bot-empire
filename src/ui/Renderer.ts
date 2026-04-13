@@ -27,6 +27,7 @@ export class Renderer {
   private elStatOffline = document.getElementById('stat-offline')!;
   private elPrestigeBar = document.getElementById('prestige-bar-fill')!;
   private elPrestigePct = document.getElementById('prestige-pct')!;
+  private elPrestigeTarget = document.getElementById('prestige-target')!;
   private elBtnPrestige = document.getElementById('btn-prestige') as HTMLButtonElement;
 
   // Tab counts
@@ -79,8 +80,10 @@ export class Renderer {
 
     // Prestige bar
     const pct = Math.floor(progress * 100);
+    const threshold = this.engine.getPrestigeThreshold(state);
     this.elPrestigeBar.style.width = `${pct}%`;
     this.elPrestigePct.textContent = `${pct}%`;
+    this.elPrestigeTarget.textContent = `Objectif : ${formatCurrency(threshold)}`;
     this.elBtnPrestige.disabled = !canPrestige;
 
     // Tab counts
@@ -116,13 +119,18 @@ export class Renderer {
       const canBuy = this.engine.canBuyAgent(state, def.id);
       const prod = this.engine.getAgentProduction(state, def);
 
+      const unitProd = count > 0 ? prod / count : def.baseProduction * this.engine.getPrestigeMultiplier(state);
+
       return `
         <div class="agent-card ${canBuy ? 'affordable' : ''}" data-agent="${def.id}">
           <div class="agent-icon">${def.icon}</div>
           <div class="agent-info">
             <div class="agent-name">${def.name}</div>
             <div class="agent-desc">${def.description}</div>
-            ${count > 0 ? `<div class="agent-prod">${formatRate(prod)} total</div>` : ''}
+            <div class="agent-prod-detail">
+              <span class="agent-prod-unit">${formatRate(unitProd)}/unité</span>
+              ${count > 0 ? `<span class="agent-prod-total">${formatRate(prod)} total</span>` : ''}
+            </div>
           </div>
           <div class="agent-right">
             <div class="agent-count">${count}</div>

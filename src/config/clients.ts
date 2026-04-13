@@ -3,57 +3,64 @@ export interface ClientDef {
   name: string;
   sector: string;
   icon: string;
-  bonusPerSecond: number;   // €/s ajoutés une fois déverrouillé
-  unlockRateRequired: number; // €/s de production passive nécessaire
+  bonusPerSecond: number;
+  unlockRateRequired: number;
+  unlockDialogue: string; // Message affiché quand le client signe
 }
 
 export const CLIENTS: ClientDef[] = [
   {
     id: 'restaurant-local',
-    name: 'Restaurant Local',
-    sector: 'Restauration',
+    name: 'La Taverne',
+    sector: 'Restauration 🍺',
     icon: '🍽️',
-    bonusPerSecond: 0.5,
-    unlockRateRequired: 0.3,
+    bonusPerSecond: 1.5,          // était 0.5
+    unlockRateRequired: 0.2,      // était 0.3
+    unlockDialogue: '🍺 La Taverne signe ! "On veut un chatbot pour les réservations."',
   },
   {
     id: 'cabinet-medical',
-    name: 'Cabinet Médical',
-    sector: 'Santé',
+    name: 'MédiaTech+',
+    sector: 'Santé numérique',
     icon: '🏥',
-    bonusPerSecond: 2,
-    unlockRateRequired: 2,
+    bonusPerSecond: 8,            // était 2
+    unlockRateRequired: 1.5,      // était 2
+    unlockDialogue: '💊 MédiaTech+ à bord ! "L\'IA doit rester RGPD-compliant." On gère.',
   },
   {
     id: 'pme-ecommerce',
-    name: 'PME E-commerce',
-    sector: 'Commerce',
+    name: 'BricoMax',
+    sector: 'E-commerce',
     icon: '🛍️',
-    bonusPerSecond: 8,
-    unlockRateRequired: 10,
+    bonusPerSecond: 30,           // était 8
+    unlockRateRequired: 8,        // était 10
+    unlockDialogue: '🛒 BricoMax signe ! "Nos concurrents ont déjà l\'IA. Rattrapez-nous."',
   },
   {
     id: 'groupe-hotelier',
-    name: 'Groupe Hôtelier',
-    sector: 'Hôtellerie',
+    name: 'PalmHôtel Group',
+    sector: 'Hôtellerie & Luxe',
     icon: '🏨',
-    bonusPerSecond: 30,
-    unlockRateRequired: 50,
+    bonusPerSecond: 100,          // était 30
+    unlockRateRequired: 40,       // était 50
+    unlockDialogue: '🌴 PalmHôtel Group confirme ! "Automatisation totale du concierge virtuel."',
   },
   {
     id: 'grand-compte',
-    name: 'Grand Compte CAC40',
-    sector: 'Corporate',
+    name: 'GigaSoft Corp.',
+    sector: 'Big Tech',
     icon: '🏢',
-    bonusPerSecond: 120,
-    unlockRateRequired: 200,
+    bonusPerSecond: 400,          // était 120
+    unlockRateRequired: 150,      // était 200
+    unlockDialogue: '🔥 GigaSoft Corp. entre dans l\'empire ! Budget illimité. Exécution parfaite attendue.',
   },
   {
     id: 'gouvernement',
-    name: 'Marché Public',
-    sector: 'Gouvernement',
+    name: 'MinisteIA',
+    sector: 'Secteur Public',
     icon: '🏛️',
-    bonusPerSecond: 500,
-    unlockRateRequired: 800,
+    bonusPerSecond: 2_000,        // était 500
+    unlockRateRequired: 600,      // était 800
+    unlockDialogue: '🏛️ MinisteIA valide le marché ! L\'État fait confiance à ton agence. Historique.',
   },
 ];

@@ -2,11 +2,13 @@ import { GameState } from './GameState.ts';
 import { AGENTS, AgentDef } from '../config/agents.ts';
 import { CLIENTS } from '../config/clients.ts';
 import { UPGRADES } from '../config/upgrades.ts';
+import { REPUTATION_PERKS, getPrestigeRP } from '../config/reputationPerks.ts';
 
-const PRESTIGE_THRESHOLD = 1_000_000;
+const PRESTIGE_BASE           = 750_000;
+const PRESTIGE_SCALE          = 2.0;  // ×2 par prestige
 const PRESTIGE_BONUS_PER_LEVEL = 0.15;
-const BASE_CLICK_VALUE = 0.1;
-const MAX_OFFLINE_HOURS = 8;
+const BASE_CLICK_VALUE         = 0.1;
+const MAX_OFFLINE_HOURS        = 8;
 
 export interface TickResult {
   newClients: string[];
@@ -49,30 +51,32 @@ export class GameEngine {
       .reduce((acc, c) => acc + c.bonusPerSecond, 0);
   }
 
-  getTotalRate(state: GameState): number {
+  getTotalRate(state: GameState, marketMult = 1): number {
     const agentProd = AGENTS.reduce(
       (acc, def) => acc + this.getAgentProduction(state, def), 0
     );
-    const clientBonus = this.getClientBonus(state);
-    const globalMult = this.getGlobalUpgradeMultiplier(state);
-    const prestigeMult = this.getPrestigeMultiplier(state);
-    return (agentProd + clientBonus) * globalMult * prestigeMult;
+    const clientBonus   = this.getClientBonus(state);
+    const globalMult    = this.getGlobalUpgradeMultiplier(state);
+    const prestigeMult  = this.getPrestigeMultiplier(state);
+    const repMult       = this.getReputationIncomeMult(state);
+    return (agentProd + clientBonus) * globalMult * prestigeMult * repMult * marketMult;
   }
 
   // ─── CLIC ──────────────────────────────────────────────────
 
-  getClickValue(state: GameState): number {
+  getClickValue(state: GameState, marketClickMult = 1): number {
     const clickMult = UPGRADES.filter(u =>
       state.upgradesPurchased[u.id] && u.effect.type === 'click_multiplier'
     ).reduce((acc, u) => {
       return acc * (u.effect.type === 'click_multiplier' ? u.effect.multiplier : 1);
     }, 1);
     const prestigeMult = this.getPrestigeMultiplier(state);
-    return BASE_CLICK_VALUE * clickMult * prestigeMult;
+    const repClickMult = this.getReputationClickMult(state);
+    return BASE_CLICK_VALUE * clickMult * prestigeMult * repClickMult * marketClickMult;
   }
 
-  click(state: GameState): GameState {
-    const value = this.getClickValue(state);
+  click(state: GameState, marketClickMult = 1): GameState {
+    const value = this.getClickValue(state, marketClickMult);
     return {
       ...state,
       currency: state.currency + value,
@@ -85,7 +89,9 @@ export class GameEngine {
   getAgentCost(state: GameState, agentId: string): number {
     const def = AGENTS.find(a => a.id === agentId)!;
     const count = state.agents[agentId]?.count ?? 0;
-    return def.baseCost * Math.pow(def.costMultiplier, count);
+    const base = def.baseCost * Math.pow(def.costMultiplier, count);
+    const reduction = this.getReputationAgentDiscount(state);
+    return base * (1 - reduction);
   }
 
   canBuyAgent(state: GameState, agentId: string): boolean {
@@ -132,8 +138,8 @@ export class GameEngine {
 
   // ─── TICK ──────────────────────────────────────────────────
 
-  tick(state: GameState, deltaSeconds: number): { state: GameState; result: TickResult } {
-    const rate = this.getTotalRate(state);
+  tick(state: GameState, deltaSeconds: number, marketMult = 1): { state: GameState; result: TickResult } {
+    const rate = this.getTotalRate(state, marketMult);
     const earned = rate * deltaSeconds;
     const prevClientStates = { ...state.clientsUnlocked };
 
@@ -164,8 +170,8 @@ export class GameEngine {
   applyOfflineEarnings(state: GameState, seconds: number): { state: GameState; earned: number } {
     const capped = Math.min(seconds, MAX_OFFLINE_HOURS * 3600);
     const rate = this.getTotalRate(state);
-    // Offline = 50% de la production normale (équilibre)
-    const earned = rate * capped * 0.5;
+    const offlineRate = this.getReputationOfflineRate(state);
+    const earned = rate * capped * offlineRate;
     if (earned <= 0) return { state, earned: 0 };
     return {
       state: {
@@ -179,28 +185,95 @@ export class GameEngine {
 
   // ─── PRESTIGE ──────────────────────────────────────────────
 
+  getPrestigeThreshold(state: GameState): number {
+    return Math.round(PRESTIGE_BASE * Math.pow(PRESTIGE_SCALE, state.prestigeCount));
+  }
+
   canPrestige(state: GameState): boolean {
-    return state.totalEarned >= PRESTIGE_THRESHOLD;
+    return state.totalEarned >= this.getPrestigeThreshold(state);
   }
 
   getPrestigeProgress(state: GameState): number {
-    return Math.min(state.totalEarned / PRESTIGE_THRESHOLD, 1);
+    return Math.min(state.totalEarned / this.getPrestigeThreshold(state), 1);
+  }
+
+  getPrestigeRP(state: GameState): number {
+    return getPrestigeRP(state.prestigeCount);
   }
 
   prestige(state: GameState): GameState {
     if (!this.canPrestige(state)) return state;
     const newPrestigeCount = state.prestigeCount + 1;
-    // Reset total — on garde seulement le compteur prestige
+    const earnedRP         = this.getPrestigeRP(state);
+    const startBonus       = this.getReputationStartBonus(state);
+
     const fresh: GameState = {
-      currency: 0,
-      totalEarned: 0,
-      prestigeCount: newPrestigeCount,
-      agents: Object.fromEntries(Object.keys(state.agents).map(id => [id, { count: 0 }])),
-      clientsUnlocked: Object.fromEntries(Object.keys(state.clientsUnlocked).map(id => [id, false])),
+      currency:          startBonus,
+      totalEarned:       startBonus,
+      prestigeCount:     newPrestigeCount,
+      agents:            Object.fromEntries(Object.keys(state.agents).map(id => [id, { count: 0 }])),
+      clientsUnlocked:   Object.fromEntries(Object.keys(state.clientsUnlocked).map(id => [id, false])),
       upgradesPurchased: Object.fromEntries(Object.keys(state.upgradesPurchased).map(id => [id, false])),
-      lastSave: Date.now(),
+      lastSave:          Date.now(),
+      // Réputation : survit au prestige
+      reputationPoints:    (state.reputationPoints ?? 0) + earnedRP,
+      reputationPurchased: { ...(state.reputationPurchased ?? {}) },
     };
     return fresh;
+  }
+
+  // ─── RÉPUTATION ────────────────────────────────────────────
+
+  hasRepPerk(state: GameState, perkId: string): boolean {
+    return !!(state.reputationPurchased?.[perkId]);
+  }
+
+  canBuyRepPerk(state: GameState, perkId: string): boolean {
+    const perk = REPUTATION_PERKS.find(p => p.id === perkId);
+    if (!perk || this.hasRepPerk(state, perkId)) return false;
+    return (state.reputationPoints ?? 0) >= perk.cost;
+  }
+
+  buyRepPerk(state: GameState, perkId: string): GameState {
+    if (!this.canBuyRepPerk(state, perkId)) return state;
+    const perk = REPUTATION_PERKS.find(p => p.id === perkId)!;
+    return {
+      ...state,
+      reputationPoints: (state.reputationPoints ?? 0) - perk.cost,
+      reputationPurchased: { ...(state.reputationPurchased ?? {}), [perkId]: true },
+    };
+  }
+
+  getReputationIncomeMult(state: GameState): number {
+    return this.hasRepPerk(state, 'rep-income-x125') ? 1.25 : 1;
+  }
+
+  getReputationClickMult(state: GameState): number {
+    return this.hasRepPerk(state, 'rep-click-x2') ? 2 : 1;
+  }
+
+  getReputationAgentDiscount(state: GameState): number {
+    return this.hasRepPerk(state, 'rep-agent-discount') ? 0.2 : 0;
+  }
+
+  getReputationOfflineRate(state: GameState): number {
+    return this.hasRepPerk(state, 'rep-offline-rate') ? 0.75 : 0.5;
+  }
+
+  getReputationStartBonus(state: GameState): number {
+    return this.hasRepPerk(state, 'rep-start-bonus') ? 2_000 : 0;
+  }
+
+  getReputationContractBonus(state: GameState): number {
+    return this.hasRepPerk(state, 'rep-contract-bonus') ? 1.25 : 1;
+  }
+
+  getReputationExtraSlot(state: GameState): boolean {
+    return this.hasRepPerk(state, 'rep-contract-slot');
+  }
+
+  getReputationEchoCooldownMult(state: GameState): number {
+    return this.hasRepPerk(state, 'rep-echo-boost') ? 0.5 : 1;
   }
 
   // ─── STATS ─────────────────────────────────────────────────
