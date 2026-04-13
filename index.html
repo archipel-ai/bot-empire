@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bot Empire — Construis ton agence IA</title>
+  <meta name="description" content="Idle game d'agence IA. De freelancer solo à empire d'automatisation." />
+  <meta name="theme-color" content="#00ff88" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Bot Empire" />
+  <link rel="manifest" href="/bot-empire/manifest.json" />
+  <link rel="apple-touch-icon" href="/bot-empire/icon-192.svg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <script type="module" crossorigin src="/bot-empire/assets/index-lEampyhy.js"></script>
+  <link rel="stylesheet" crossorigin href="/bot-empire/assets/index-C64nC93S.css">
+</head>
+<body>
+  <div id="app">
+
+    <!-- HEADER -->
+    <header id="header">
+      <div class="logo">
+        <span class="logo-icon">⬡</span>
+        <span class="logo-text">BOT EMPIRE</span>
+      </div>
+      <div class="currency-display">
+        <div class="currency-main">
+          <span class="label">TRÉSORERIE</span>
+          <span id="hd-currency">€0.00</span>
+        </div>
+        <div class="currency-rate">
+          <span class="label">PRODUCTION</span>
+          <span id="hd-rate">+0.00/s</span>
+        </div>
+        <div class="currency-total">
+          <span class="label">TOTAL GAGNÉ</span>
+          <span id="hd-total">€0.00</span>
+        </div>
+      </div>
+      <div class="prestige-badge" id="prestige-badge" style="display:none">
+        <span id="prestige-count">×0</span>
+        <span class="label">PRESTIGES</span>
+      </div>
+    </header>
+
+    <!-- MARCHÉ IA VIVANT — bannière événement -->
+    <div id="market-banner" class="market-banner hidden">
+      <span id="market-banner-icon" class="market-banner-icon"></span>
+      <div class="market-banner-text">
+        <span id="market-banner-name" class="market-banner-name"></span>
+        <span id="market-banner-desc" class="market-banner-desc"></span>
+      </div>
+      <span id="market-banner-effect" class="market-banner-effect"></span>
+      <span id="market-banner-timer" class="market-banner-timer"></span>
+    </div>
+
+    <!-- MAIN -->
+    <main id="main">
+
+      <!-- LEFT — Actions + Stats -->
+      <aside id="panel-left">
+
+        <!-- BUREAU VIRTUEL -->
+        <div id="bureau" class="stage-chambre">
+          <div class="bureau-header">
+            <span class="bureau-title">BUREAU VIRTUEL</span>
+            <span class="bureau-count" id="bureau-count">0 agents</span>
+          </div>
+          <div class="bureau-floor"></div>
+          <div id="bureau-stage-badge" class="bureau-stage-badge">
+            <span class="stage-icon">🛋️</span>
+            <span class="stage-label">Chambre d'ado</span>
+            <span class="stage-sublabel">Le voyage commence ici</span>
+          </div>
+          <div id="bureau-chars"></div>
+          <div class="bureau-empty" id="bureau-empty">
+            <span class="bureau-empty-icon">🏢</span>
+            <span>Recrutez votre premier agent</span>
+          </div>
+        </div>
+
+        <div id="click-zone">
+          <button id="btn-click" class="btn-click">
+            <span class="btn-click-icon">⚡</span>
+            <span class="btn-click-label">Exécuter une tâche</span>
+            <span class="btn-click-value" id="click-value-display">+€0.10</span>
+          </button>
+          <div class="click-ripple" id="click-ripple"></div>
+        </div>
+
+        <!-- ÉCHO -->
+        <div id="echo-zone">
+          <button id="btn-echo" class="btn-echo" disabled>
+            <span class="echo-icon">↺</span>
+            <div class="echo-text">
+              <span class="echo-label">MODE ÉCHO</span>
+              <span class="echo-sub" id="echo-sub">Cliquez 3× pour activer</span>
+            </div>
+          </button>
+          <div class="echo-bar-wrap" id="echo-bar-wrap" style="display:none">
+            <div class="echo-bar-track">
+              <div class="echo-bar-fill" id="echo-bar-fill"></div>
+            </div>
+            <span class="echo-timer-label" id="echo-timer-label">60s</span>
+          </div>
+        </div>
+
+        <div class="stats-card">
+          <div class="stats-title">TABLEAU DE BORD</div>
+          <div class="stat-row">
+            <span class="stat-label">Agents actifs</span>
+            <span class="stat-value" id="stat-agents">0</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">Contrats signés</span>
+            <span class="stat-value" id="stat-clients">0</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">Upgrades achetés</span>
+            <span class="stat-value" id="stat-upgrades">0</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">Multiplicateur</span>
+            <span class="stat-value accent-purple" id="stat-multiplier">×1.00</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">Production offline</span>
+            <span class="stat-value accent-green" id="stat-offline">—</span>
+          </div>
+        </div>
+
+        <!-- SAUVEGARDE -->
+        <div class="save-actions">
+          <button id="btn-share" class="btn-save-action btn-share-action" title="Partager mon agence">
+            🔗 Partager
+          </button>
+          <button id="btn-export" class="btn-save-action" title="Exporter la sauvegarde">
+            💾 Exporter
+          </button>
+          <label id="btn-import-label" class="btn-save-action" title="Importer une sauvegarde">
+            📂 Importer
+            <input type="file" id="btn-import" accept=".json" style="display:none" />
+          </label>
+        </div>
+
+        <div id="prestige-card" class="prestige-card">
+          <div class="prestige-card-title">VENDRE L'AGENCE</div>
+          <div class="prestige-progress-wrap">
+            <div class="prestige-progress-bar">
+              <div id="prestige-bar-fill" class="prestige-bar-fill" style="width:0%"></div>
+            </div>
+            <span id="prestige-pct">0%</span>
+          </div>
+          <div class="prestige-target" id="prestige-target">Objectif : €500,000</div>
+          <button id="btn-prestige" class="btn-prestige" disabled>
+            Vendre l'Agence (+15% permanent)
+          </button>
+        </div>
+      </aside>
+
+      <!-- RIGHT — Tabs -->
+      <section id="panel-right">
+        <nav class="tabs">
+          <button class="tab active" data-tab="agents">
+            <span>🤖</span> Agents
+            <span class="tab-count" id="tab-count-agents">0</span>
+          </button>
+          <button class="tab" data-tab="clients">
+            <span>🤝</span> Clients
+            <span class="tab-count" id="tab-count-clients">0</span>
+          </button>
+          <button class="tab" data-tab="upgrades">
+            <span>⚙️</span> Upgrades
+            <span class="tab-count" id="tab-count-upgrades">0</span>
+          </button>
+          <button class="tab" data-tab="contracts">
+            <span>📋</span> Contrats
+            <span class="tab-count tab-count-pulse" id="tab-count-contracts">0</span>
+          </button>
+          <button class="tab" data-tab="reputation">
+            <span>⭐</span> Réputation
+            <span class="tab-count" id="tab-count-reputation">0</span>
+          </button>
+          <button class="tab" data-tab="academy">
+            <span>🎓</span> Academy
+            <span class="tab-count tab-count-pulse" id="tab-count-academy">0</span>
+          </button>
+        </nav>
+
+        <div id="tab-agents" class="tab-content active">
+          <!-- Injecté par Renderer -->
+        </div>
+        <div id="tab-clients" class="tab-content">
+          <!-- Injecté par Renderer -->
+        </div>
+        <div id="tab-upgrades" class="tab-content">
+          <!-- Injecté par Renderer -->
+        </div>
+        <div id="tab-contracts" class="tab-content">
+          <!-- Injecté par ContractSystem -->
+        </div>
+        <div id="tab-reputation" class="tab-content">
+          <!-- Injecté par main.ts -->
+        </div>
+        <div id="tab-academy" class="tab-content">
+          <!-- Injecté par main.ts -->
+        </div>
+      </section>
+
+    </main>
+
+    <!-- NOTIFICATIONS -->
+    <div id="notifications" aria-live="polite"></div>
+
+    <!-- PRESTIGE OVERLAY -->
+    <div id="prestige-overlay" class="overlay hidden" role="dialog" aria-modal="true">
+      <div class="modal">
+        <div class="modal-icon">🏆</div>
+        <h2 class="modal-title">CESSION D'AGENCE</h2>
+        <p class="modal-subtitle">Vous êtes sur le point de vendre votre agence.</p>
+        <div class="modal-stats">
+          <div class="modal-stat">
+            <span class="label">Valeur de cession</span>
+            <span class="value accent-green" id="modal-value">€0</span>
+          </div>
+          <div class="modal-stat">
+            <span class="label">Multiplicateur acquis</span>
+            <span class="value accent-purple" id="modal-multiplier">+15%</span>
+          </div>
+          <div class="modal-stat">
+            <span class="label">Total après prestige</span>
+            <span class="value" id="modal-total-multi">×1.15</span>
+          </div>
+        </div>
+        <p class="modal-warning">⚠️ Tous vos agents et contrats seront réinitialisés.</p>
+        <div class="modal-actions">
+          <button id="btn-prestige-confirm" class="btn-confirm">Confirmer la vente</button>
+          <button id="btn-prestige-cancel" class="btn-cancel">Annuler</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- TUTORIAL OVERLAY -->
+    <div id="tutorial-overlay" class="overlay hidden" role="dialog" aria-modal="true">
+      <div id="tuto-card" class="tuto-card">
+        <div class="tuto-header">
+          <span id="tuto-step" class="tuto-step">1 / 4</span>
+          <button id="tuto-skip" class="tuto-skip">Passer</button>
+        </div>
+        <div id="tuto-title" class="tuto-title"></div>
+        <p id="tuto-text" class="tuto-text"></p>
+        <button id="tuto-next" class="btn-confirm tuto-next-btn"></button>
+      </div>
+    </div>
+
+    <!-- SHARE MODAL -->
+    <div id="share-overlay" class="overlay hidden" role="dialog">
+      <div class="modal modal-share">
+        <div class="modal-icon">🔗</div>
+        <h2 class="modal-title">PARTAGER MON AGENCE</h2>
+        <p class="modal-subtitle">Ce lien contient ta progression complète. Envoie-le à toi-même pour changer d'appareil, migrer vers la PWA (écran d'accueil iPhone), ou partager tes stats !</p>
+        <div class="share-tip">💡 Sur iPhone : copie ce lien avant d'ajouter à l'écran d'accueil. La PWA et Safari ont des sauvegardes séparées — le cloud Firebase synchronise automatiquement.</div>
+        <div class="share-url-wrap">
+          <input id="share-url-input" class="share-url-input" readonly />
+          <button id="btn-copy-url" class="btn-copy">Copier</button>
+        </div>
+        <div class="share-info-list">
+          <div class="share-info-row share-info-yes">✅ Partagé : progression, agents, €, prestiges</div>
+          <div class="share-info-row share-info-no">🔒 Non partagé : achats, boosters, suppression pubs</div>
+        </div>
+        <button id="btn-share-close" class="btn-cancel" style="width:100%;margin-top:8px">Fermer</button>
+      </div>
+    </div>
+
+    <!-- IMPORT FROM URL MODAL -->
+    <div id="import-url-overlay" class="overlay hidden" role="dialog">
+      <div class="modal modal-import">
+        <div class="modal-icon">📥</div>
+        <h2 class="modal-title">SAUVEGARDE DÉTECTÉE</h2>
+        <p class="modal-subtitle">Ce lien contient une progression. Veux-tu la charger ?</p>
+        <div class="import-stats" id="import-stats"></div>
+        <p class="modal-warning">⚠️ Ta progression actuelle sera remplacée.</p>
+        <div class="modal-actions">
+          <button id="btn-import-url-confirm" class="btn-confirm">Charger cette save</button>
+          <button id="btn-import-url-cancel"  class="btn-cancel">Garder la mienne</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- INCIDENT OVERLAY -->
+    <div id="incident-overlay" class="overlay hidden" role="dialog" aria-modal="true">
+      <div class="modal modal-incident">
+        <div class="incident-header">
+          <span id="incident-urgency" class="incident-urgency">🔴 CRITIQUE</span>
+          <span id="incident-client"  class="incident-client">Client</span>
+        </div>
+        <div class="incident-timer-wrap">
+          <div class="incident-timer-track">
+            <div id="incident-timer-fill" class="incident-timer-fill"></div>
+          </div>
+          <span id="incident-timer-lbl" class="incident-timer-lbl">45s</span>
+        </div>
+        <p id="incident-problem" class="incident-problem"></p>
+        <p id="incident-question" class="incident-question"></p>
+        <div id="incident-answers" class="incident-answers"></div>
+        <div id="incident-result" class="incident-result hidden">
+          <div id="incident-result-icon" class="incident-result-icon"></div>
+          <p id="incident-lesson" class="incident-lesson"></p>
+          <button id="btn-incident-close" class="btn-confirm">Continuer</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- OFFLINE EARNINGS OVERLAY -->
+    <div id="offline-overlay" class="overlay hidden" role="dialog">
+      <div class="modal modal-offline">
+        <div class="modal-icon">💤</div>
+        <h2 class="modal-title">BIENVENUE DE RETOUR</h2>
+        <p class="modal-subtitle">Vos agents ont travaillé pendant votre absence.</p>
+        <div class="offline-earned">
+          <span class="label">Revenus offline</span>
+          <span id="offline-earned-amount" class="accent-green">€0</span>
+        </div>
+        <button id="btn-offline-close" class="btn-confirm">Encaisser</button>
+      </div>
+    </div>
+
+  </div>
+</body>
+</html>

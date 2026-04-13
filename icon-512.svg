@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="80" fill="#0a0a0f"/>
+  <polygon points="256,60 420,154 420,342 256,436 92,342 92,154" fill="none" stroke="#00ff88" stroke-width="12" opacity="0.25"/>
+  <polygon points="256,95 390,167 390,311 256,383 122,311 122,167" fill="none" stroke="#00ff88" stroke-width="6" opacity="0.5"/>
+  <text x="256" y="310" font-family="monospace" font-size="180" font-weight="bold" fill="#00ff88" text-anchor="middle" opacity="0.9">⬡</text>
+  <text x="256" y="460" font-family="monospace" font-size="48" font-weight="bold" fill="#00ff88" text-anchor="middle" letter-spacing="10" opacity="0.65">BOT</text>
+</svg>
