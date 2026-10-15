@@ -1,5 +1,16 @@
 import { GameState } from '../core/GameState.ts';
+import { AGENTS } from '../config/agents.ts';
 import { t } from '../i18n/i18n.ts';
+import { PHONE_QUERY } from './Drawer.ts';
+
+/**
+ * Bureau — la scène principale, dessinée dans un seul canvas.
+ * Une dalle de porcelaine isométrique qui s'étend avec l'étape ; un socle par type
+ * d'agent, surmonté de la nuée de lettres de ce type (densité logarithmique) ;
+ * de temps en temps une feuille s'écrit au-dessus d'un poste. Le fondateur est un
+ * socle doré avec un fauteuil vide, au centre.
+ * Inspiré du rendu de la vitrine du studio (dalle, socle, nuée, feuille).
+ */
 
 // ─── STAGES ───────────────────────────────────────────────────
 
@@ -19,406 +30,674 @@ export const STAGES: Array<{ minAgents: number; minPrestige: number } & BureauSt
   { id: 'unicorn',     minAgents: 120, minPrestige: 0, icon: '🦄', label: 'Siège Social',     sublabel: 'Niveau licorne !' },
 ];
 
-function getStage(totalAgents: number, prestigeCount: number): typeof STAGES[number] {
+function getStageIndex(totalAgents: number, prestigeCount: number): number {
   // Chaque prestige réduit les seuils de 20% (cumulatif), pour récompenser la progression
   const reduction = Math.pow(0.8, prestigeCount);
-  let current = STAGES[0]!;
-  for (const s of STAGES) {
-    const adjustedMin = Math.floor(s.minAgents * reduction);
-    if (totalAgents >= adjustedMin) current = s;
-  }
+  let current = 0;
+  STAGES.forEach((s, i) => {
+    if (totalAgents >= Math.floor(s.minAgents * reduction)) current = i;
+  });
   return current;
 }
 
-// ─── CONFIG ───────────────────────────────────────────────────
+// ─── LIGNES MÉTIER ────────────────────────────────────────────
+// Ce que chaque type d'agent écrit sur sa feuille. Français ici, anglais dans i18n/content.ts.
 
-interface CharConfig {
-  color: string;
-  badge: string;
-  speedFactor: number;
-  squareHead: boolean;
-  scale: number;
-  names: string[];
-  dialogues: string[];
-}
-
-export const CONFIGS: Record<string, CharConfig> = {
-  'bot-workflows': {
-    color: '#00d4ff', badge: '🤖', speedFactor: 1.8, squareHead: true, scale: 1,
-    names: ['BOT-001', 'NEXUS-7', 'UNIT-42', 'ALPHA-X', 'BOT-099', 'CIPHER', 'FLUX-2', 'NODE-5'],
-    dialogues: ['workflow lancé ⚙️', 'HTTP 200 OK ✓', 'npm install...', 'trigger actif !', 'retry #3...', '42 tâches/min', 'loop en cours'],
-  },
-  'agent-copy': {
-    color: '#ff6b9d', badge: '✍️', speedFactor: 0.85, squareHead: false, scale: 1,
-    names: ['Sophie', 'Lucas', 'Emma', 'Théo', 'Jade', 'Hugo', 'Léa', 'Maxime'],
-    dialogues: ['"Votre marque..."', 'SEO ×3 ✓', 'thread viral ?', 'H1 optimisé !', '"CTA parfait"', 'engagement +40%', 'landing en cours'],
-  },
-  'agent-analytics': {
-    color: '#4ecdc4', badge: '📊', speedFactor: 0.65, squareHead: false, scale: 1,
-    names: ['Iris', 'Sigma', 'Marco', 'Pixel', 'Atlas', 'Vector', 'Data-One'],
-    dialogues: ['p-value: 0.03', 'dashboard ouvert', 'R² = 0.97 🎯', 'anomalie détectée', 'rapport prêt ✓', 'KPI en hausse !', 'AB test lancé'],
-  },
-  'agent-audit': {
-    color: '#ffd93d', badge: '🔍', speedFactor: 0.75, squareHead: false, scale: 1,
-    names: ['Jules', 'Scout', 'Rex', 'Aurélie', 'Inspecteur', 'Sherlock'],
-    dialogues: ['bug trouvé 🔍', 'dette tech: 4j', 'RGPD conforme ✓', 'audit complet !', 'vuln. patchée', 'score: 94/100', 'tests passés ✓'],
-  },
-  'agent-legal': {
-    color: '#a29bfe', badge: '⚖️', speedFactor: 0.45, squareHead: false, scale: 1,
-    names: ['Me. Martin', 'Lex', 'Justice', 'Maître B.', 'Conseil', 'Me. Dubois'],
-    dialogues: ['CGV à jour ✓', 'CNIL notifiée', 'contrat signé !', 'clause validée', 'RGPD OK 📋', 'marché public !', 'DPA rédigé'],
-  },
-  'agent-growth': {
-    color: '#00b894', badge: '🚀', speedFactor: 1.25, squareHead: false, scale: 1,
-    names: ['Rocket', 'Boost', 'Viral', 'Surge', 'Nova', 'Max', 'Flash'],
-    dialogues: ['+500 leads !', 'viral sur LI !', 'partner signé', 'CTR: 12% 🔥', 'pipeline plein', 'ARR: +40% 📈', 'funnel lancé'],
-  },
-  'agent-supervisor': {
-    color: '#fdcb6e', badge: '🎯', speedFactor: 0.4, squareHead: false, scale: 1.5,
-    names: ['Le Boss', 'Director', 'Chief', 'Le Grand', 'CEO'],
-    dialogues: ['bien joué équipe', 'objectif atteint ✓', 'réunion à 14h', 'performance max', '⭐ excellent !', 'on scale ! 🚀', 'livraison top'],
-  },
+export const AGENT_LINES: Record<string, string[]> = {
+  'bot-workflows':    ['workflow n8n relancé', 'webhook reçu', 'HTTP 200 OK', 'retry n°3 réussi', '42 tâches/min', 'cron de 6 h lancé'],
+  'agent-copy':       ['brouillon v2 prêt', 'titre H1 réécrit', 'newsletter envoyée', 'post LinkedIn calé', 'fiche produit livrée', 'accroche testée'],
+  'agent-analytics':  ['tableau de bord à jour', 'anomalie détectée', 'test A/B lancé', 'rapport hebdo prêt', 'cohorte analysée', 'KPI en hausse'],
+  'agent-audit':      ['audit RGPD terminé', 'faille corrigée', 'score : 94/100', 'dette tech : 4 j', 'tests au vert', 'journaux vérifiés'],
+  'agent-legal':      ['CGV mises à jour', 'clause validée', 'DPA rédigé', 'devis envoyé', 'contrat relu', 'registre RGPD tenu'],
+  'agent-growth':     ['+500 prospects', 'relance n°2 partie', 'partenaire signé', 'pipeline plein', 'démo réservée', 'campagne lancée'],
+  'agent-supervisor': ['priorités du jour', "revue d'équipe", 'livraison validée', 'charge rééquilibrée', 'objectif atteint', 'agents synchronisés'],
 };
+
+// ─── RÉGLAGES ─────────────────────────────────────────────────
+
+/** Demi-côté de la dalle (unités de grille) par étape : chambre → siège social. */
+const STAGE_EXTENT   = [1.7, 2.6, 3.2, 3.6, 4.1, 4.6];
+const CELL           = 2.2;           // écart entre deux postes
+/** Place de chaque type d'agent autour du fondateur, dans l'ordre de AGENTS. */
+const POST_CELLS: Array<[number, number]> = [[1, 0], [0, 1], [-1, 0], [0, -1], [1, 1], [-1, -1], [1, -1]];
+const POST_HALF      = 0.62;          // demi-côté d'un socle
+const POST_HEIGHT    = 26;            // hauteur d'un socle (1/60 de S)
+const FOUNDER_HALF   = 0.78;
+const FOUNDER_HEIGHT = 30;
+const LETTERS_BASE   = 12;            // lettres d'une nuée pour un seul agent…
+const LETTERS_LOG    = 15;            // … puis + LETTERS_LOG × log2(1 + n)
+const LETTERS_MAX    = 80;            // plafond par nuée (fluidité)
+const MAX_S          = 92;            // échelle maximale (px par unité)
+const CAMERA_RATE    = 1.6;           // vitesse de la caméra (1/s)
+const SHEET_TYPE_CPS = 16;            // lettres écrites par seconde sur une feuille
+const SHEET_HOLD     = 2.4;           // s : la feuille reste lisible une fois écrite
+const SHEET_FADE     = 0.6;           // s
+const SHEET_GAP_MIN  = 2.2;           // s entre deux nouvelles feuilles
+const SHEET_GAP_MAX  = 4.8;
+const TOUCH_TIP_MS   = 2600;
+const MAX_DT         = 0.05;
 
 // ─── TYPES ────────────────────────────────────────────────────
 
-interface LiveChar {
-  agentId: string;
-  name: string;
-  el: HTMLElement;
-  x: number;
-  y: number;
-  prevX: number;
-  wanderTimer: number;
-  workTimer: number;
-  bubbleTimer: number;
-  particleTimer: number;
-  isWorking: boolean;
+interface Letter { ch: string; a: number; r: number; h: number; v: number; ph: number; }
+
+interface Flight { ch: string; t: number; x0: number; y0: number; idx: number; }
+
+interface Sheet {
+  text:   string;
+  typed:  number;
+  acc:    number;
+  hold:   number;   // temps restant une fois écrite (puis fondu)
+  flights: Flight[];
 }
 
-const MAX_VISIBLE = 20;
-let uid = 0;
+interface Post {
+  id:      string;
+  name:    string;
+  gx:      number;
+  gy:      number;
+  count:   number;
+  letters: Letter[];
+  source:  string;
+  sheet:   Sheet | null;
+  // Projection du dernier rendu (pour le survol)
+  sx: number; sy: number; top: number;
+}
 
-export const FOUNDER_DIALOGUES = [
-  'On scale ! 🚀', "C'est bon ça...", 'Excellent travail !',
-  'Encore un client !', 'Le plan se déroule', '💰 KPI au vert !',
-  'On build ! ⚡', 'Série A en vue 👀', 'Pipeline plein 🔥',
-  'Claude, continue...', 'Vision claire 🎯', "L'empire grandit.",
-];
+interface Palette {
+  encre: string; pale: string; outremer: string; ambre: string; brume: string;
+  socle: string; fond: string; fond2: string;
+}
+
+// ─── COULEURS ─────────────────────────────────────────────────
+
+type Rgb = [number, number, number];
+
+function hexToRgb(hex: string): Rgb {
+  const h = hex.replace('#', '').trim();
+  const n = parseInt(h.length === 3 ? h.split('').map(c => c + c).join('') : h, 16);
+  return [n >> 16, (n >> 8) & 255, n & 255];
+}
+function rgba(c: Rgb, a: number): string { return `rgba(${c[0]},${c[1]},${c[2]},${Math.max(0, Math.min(1, a))})`; }
+function mix(a: Rgb, b: Rgb, t: number): Rgb {
+  return [Math.round(a[0] + (b[0] - a[0]) * t), Math.round(a[1] + (b[1] - a[1]) * t), Math.round(a[2] + (b[2] - a[2]) * t)];
+}
+
+function readPalette(): Palette {
+  const css = getComputedStyle(document.documentElement);
+  const tok = (n: string) => css.getPropertyValue(n).trim();
+  return {
+    encre: tok('--encre'), pale: tok('--encre-pale'), outremer: tok('--outremer'), ambre: tok('--ambre'),
+    brume: tok('--brume'), socle: tok('--socle'), fond: tok('--porcelaine'), fond2: tok('--porcelaine-2'),
+  };
+}
+
+const easeOut = (x: number) => 1 - Math.pow(1 - x, 3);
 
 // ─── BUREAU ───────────────────────────────────────────────────
 
 export class Bureau {
-  private container  = document.getElementById('bureau-chars')!;
+  private bureauEl   = document.getElementById('bureau')!;
   private emptyEl    = document.getElementById('bureau-empty')!;
   private countEl    = document.getElementById('bureau-count')!;
-  private bureauEl   = document.getElementById('bureau')!;
   private stageBadge = document.getElementById('bureau-stage-badge')!;
-  private chars: LiveChar[] = [];
-  private lastCounts: Record<string, number> = {};
-  private founder: LiveChar | null = null;
-  private lastPrestigeCount = -1;
-  private currentStageId    = '';
+  private canvas     = document.createElement('canvas');
+  private ctx        = this.canvas.getContext('2d')!;
+  private tooltip    = document.createElement('div');
+
+  private reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
+  private phone   = window.matchMedia(PHONE_QUERY);
+
+  private W = 0; private H = 0; private S = 40; private CX = 0; private CY = 0;
+  private ext = STAGE_EXTENT[0]!;   // demi-côté affiché (suit la cible en douceur)
+  private extTarget = STAGE_EXTENT[0]!;
+  private time = 0;
+  private sheetTimer = 1.5;
+
+  private posts: Post[];
+  private founderMult = 1;
+  private prestigeCount = 0;
+  private totalAgents = 0;
+  private hovered: string | null = null;
+  private touchTimer: ReturnType<typeof setTimeout> | null = null;
+
+  // Couleurs résolues depuis les jetons CSS
+  private C: Record<keyof Palette, Rgb>;
+  private faceL: Rgb; private faceR: Rgb; private slabTop: Rgb; private slabL: Rgb; private slabR: Rgb;
+  private goldTop: Rgb; private goldL: Rgb; private goldR: Rgb;
+  private mono: string; private display: string;
+
+  private currentStageId = '';
   onStageChange?: (stage: BureauStage) => void;
 
+  constructor() {
+    const p = readPalette();
+    this.C = Object.fromEntries(Object.entries(p).map(([k, v]) => [k, hexToRgb(v)])) as Record<keyof Palette, Rgb>;
+    this.slabTop = mix(this.C.socle, this.C.fond, 0.35);
+    this.slabL   = mix(this.C.fond2, this.C.brume, 0.18);
+    this.slabR   = mix(this.C.fond2, this.C.brume, 0.34);
+    this.faceL   = mix(this.C.fond2, this.C.brume, 0.22);
+    this.faceR   = mix(this.C.fond2, this.C.brume, 0.40);
+    this.goldTop = mix(this.C.socle, this.C.ambre, 0.22);
+    this.goldL   = mix(this.C.ambre, this.C.socle, 0.45);
+    this.goldR   = mix(this.C.ambre, this.C.encre, 0.12);
+    const css = getComputedStyle(document.documentElement);
+    this.mono    = css.getPropertyValue('--mono').trim() || 'monospace';
+    this.display = css.getPropertyValue('--display').trim() || 'sans-serif';
+
+    this.posts = AGENTS.map((def, i) => {
+      const [cx, cy] = POST_CELLS[i % POST_CELLS.length]!;
+      const source = (AGENT_LINES[def.id] ?? [def.name]).join('').replace(/\s+/g, '');
+      return {
+        id: def.id, name: def.name, gx: cx * CELL, gy: cy * CELL, count: 0,
+        letters: [], source, sheet: null, sx: 0, sy: 0, top: 0,
+      };
+    });
+
+    this.canvas.className = 'bureau-canvas';
+    this.canvas.setAttribute('role', 'img');
+    this.tooltip.className = 'bureau-tooltip hidden';
+    this.tooltip.setAttribute('aria-hidden', 'true');
+    this.bureauEl.prepend(this.canvas);
+    this.bureauEl.appendChild(this.tooltip);
+
+    new ResizeObserver(() => this.resize()).observe(this.bureauEl);
+    this.resize();
+
+    this.canvas.addEventListener('pointermove', (e) => { if (e.pointerType === 'mouse') this.pick(e, false); });
+    this.canvas.addEventListener('pointerleave', (e) => { if (e.pointerType === 'mouse') this.setHover(null); });
+    this.canvas.addEventListener('pointerdown', (e) => { if (e.pointerType !== 'mouse') this.pick(e, true); });
+  }
+
+  /** Avance la scène de `dt` secondes et la redessine (rien si l'onglet est caché). */
   update(dt: number, state: GameState): void {
-    this.syncFounder(state.prestigeCount);
-    this.syncStage(state);
     this.sync(state);
-    this.tick(dt);
+    if (document.hidden || this.W === 0) return;
+    const step = Math.min(dt, MAX_DT);
+    this.time += step;
+    this.animate(step);
+    this.draw();
   }
 
-  // ─── STAGE ──────────────────────────────────────────────────
-
-  private syncStage(state: GameState): void {
-    const totalAgents = Object.values(state.agents).reduce((s, a) => s + a.count, 0);
-    const stage = getStage(totalAgents, state.prestigeCount);
-    if (stage.id === this.currentStageId) return;
-
-    const prev = this.currentStageId;
-    this.currentStageId = stage.id;
-
-    // Mise à jour classe CSS sur le bureau
-    if (prev) this.bureauEl.classList.remove(`stage-${prev}`);
-    this.bureauEl.classList.add(`stage-${stage.id}`);
-
-    // Badge
-    this.stageBadge.innerHTML = `<span class="stage-icon">${stage.icon}</span><span class="stage-label">${stage.label}</span><span class="stage-sublabel">${stage.sublabel}</span>`;
-
-    // Flash lumineux + callback notification (seulement si ce n'est pas le premier chargement)
-    if (prev) {
-      const flash = document.createElement('div');
-      flash.className = 'bureau-stage-flash';
-      this.bureauEl.appendChild(flash);
-      setTimeout(() => flash.remove(), 1500);
-      if (this.onStageChange) this.onStageChange(stage);
-    }
-  }
-
-  // ─── FONDATEUR ──────────────────────────────────────────────
-
-  private syncFounder(prestigeCount: number): void {
-    if (this.founder && prestigeCount === this.lastPrestigeCount) return;
-
-    if (this.founder) {
-      // Mise à jour visuelle au prestige
-      const scale = Math.min(1.35 + prestigeCount * 0.12, 2.4);
-      this.founder.el.style.setProperty('--char-scale', String(scale));
-      const badge = this.founder.el.querySelector('.char-badge');
-      if (badge) badge.textContent = prestigeCount > 0
-        ? '⭐'.repeat(Math.min(prestigeCount, 5))
-        : '🧑‍💻';
-      // Flash doré au prestige
-      this.founder.el.classList.add('prestige-flash');
-      setTimeout(() => this.founder?.el.classList.remove('prestige-flash'), 1200);
-      this.lastPrestigeCount = prestigeCount;
-      return;
-    }
-
-    // Premier spawn du fondateur — toujours au centre
-    const x = 44 + (Math.random() - 0.5) * 8;
-    const y = 52;
-    const scale = Math.min(1.35 + prestigeCount * 0.12, 2.4);
-
-    const el = document.createElement('div');
-    el.className = 'bureau-char bureau-founder spawning';
-    el.id = 'bureau-founder';
-    el.style.cssText = [
-      `left:${x}%`, `top:${y}%`,
-      `--char-color:#e2e8f0`,
-      `--char-scale:${scale}`,
-      `--bounce-ms:2200ms`,
-      `--leg-ms:950ms`,
-    ].join(';');
-    el.innerHTML = `
-      <div class="char-badge">${prestigeCount > 0 ? '⭐'.repeat(Math.min(prestigeCount, 5)) : '🧑‍💻'}</div>
-      <div class="char-inner">
-        <div class="char-head founder-head">
-          <div class="char-eyes"><span></span><span></span></div>
-          <div class="founder-smile"></div>
-        </div>
-        <div class="char-body founder-body"></div>
-        <div class="char-legs founder-legs"><span></span><span></span></div>
-      </div>
-      <div class="char-name founder-label">${t('bureau.founder')}</div>
-    `;
-
-    this.container.appendChild(el);
-    setTimeout(() => el.classList.remove('spawning'), 600);
-
-    this.founder = {
-      agentId: 'founder', name: t('bureau.founder'),
-      el, x, y, prevX: x,
-      wanderTimer:   5 + Math.random() * 4,
-      workTimer:     4 + Math.random() * 5,
-      bubbleTimer:   7 + Math.random() * 6,
-      particleTimer: 99,
-      isWorking: false,
-    };
-    this.lastPrestigeCount = prestigeCount;
-  }
-
-  // ─── SYNC ───────────────────────────────────────────────────
+  // ─── ÉTAT ───────────────────────────────────────────────────
 
   private sync(state: GameState): void {
-    let changed = false;
-    for (const [id, { count }] of Object.entries(state.agents)) {
-      if ((this.lastCounts[id] ?? 0) !== count) { changed = true; break; }
+    let total = 0;
+    for (const post of this.posts) {
+      const count = state.agents[post.id]?.count ?? 0;
+      total += count;
+      if (count !== post.count) {
+        post.count = count;
+        this.resizeCloud(post);
+      }
     }
-    if (!changed) return;
+    this.prestigeCount = state.prestigeCount;
+    this.founderMult = 1 + state.prestigeCount * 0.15;
 
-    for (const [id, { count }] of Object.entries(state.agents)) {
-      this.lastCounts[id] = count;
+    if (total !== this.totalAgents || !this.currentStageId) {
+      this.totalAgents = total;
+      this.countEl.textContent = t(total > 1 ? 'bureau.agentsPl' : 'bureau.agents', { n: total });
+      this.emptyEl.style.display = total === 0 ? '' : 'none';
+      this.canvas.setAttribute('aria-label', this.describe());
     }
+    this.syncStage(total, state.prestigeCount);
+  }
 
-    const totalAgents = Object.values(state.agents).reduce((s, a) => s + a.count, 0);
-    const targets     = this.computeTargets(state.agents, totalAgents);
+  private syncStage(totalAgents: number, prestigeCount: number): void {
+    const idx = getStageIndex(totalAgents, prestigeCount);
+    const stage = STAGES[idx]!;
+    // Dalle : l'étape, mais jamais plus petite que les postes occupés
+    const needed = this.posts.reduce((m, p) => p.count > 0 ? Math.max(m, Math.max(Math.abs(p.gx), Math.abs(p.gy)) + POST_HALF + 0.55) : m, 0);
+    this.extTarget = Math.max(STAGE_EXTENT[idx] ?? STAGE_EXTENT[0]!, needed);
 
-    const current: Record<string, number> = {};
-    for (const c of this.chars) current[c.agentId] = (current[c.agentId] ?? 0) + 1;
+    if (stage.id === this.currentStageId) return;
+    const prev = this.currentStageId;
+    if (prev) this.bureauEl.classList.remove(`stage-${prev}`);
+    this.bureauEl.classList.add(`stage-${stage.id}`);
+    this.currentStageId = stage.id;
 
-    for (const [agentId, target] of Object.entries(targets)) {
-      for (let i = (current[agentId] ?? 0); i < target; i++) this.spawn(agentId);
+    this.stageBadge.innerHTML = `<span class="stage-icon">${stage.icon}</span><span class="stage-label"></span><span class="stage-sublabel"></span>`;
+    this.stageBadge.querySelector('.stage-label')!.textContent = stage.label;
+    this.stageBadge.querySelector('.stage-sublabel')!.textContent = stage.sublabel;
+
+    if (!prev) {
+      this.ext = this.extTarget; // premier chargement : pas de transition
+      return;
     }
+    // Transition : la caméra recule à partir de la dalle d'avant
+    if (this.onStageChange) this.onStageChange(stage);
+  }
 
-    for (const [agentId, cur] of Object.entries(current)) {
-      let toRemove = cur - (targets[agentId] ?? 0);
-      while (toRemove-- > 0) {
-        const entry = [...this.chars.entries()].filter(([, c]) => c.agentId === agentId).pop();
-        if (entry) this.remove(entry[0]);
+  private describe(): string {
+    const owned = this.posts.filter(p => p.count > 0).map(p => `${p.name} ×${p.count}`);
+    return owned.length ? `${t('bureau.title')} — ${owned.join(', ')}` : t('bureau.empty');
+  }
+
+  /** Nombre de lettres d'une nuée : logarithmique, plafonné. */
+  private cloudSize(count: number): number {
+    if (count <= 0) return 0;
+    return Math.min(LETTERS_MAX, Math.round(LETTERS_BASE + LETTERS_LOG * Math.log2(1 + count)));
+  }
+
+  private resizeCloud(post: Post): void {
+    const target = this.cloudSize(post.count);
+    while (post.letters.length > target) post.letters.pop();
+    let j = post.letters.length;
+    while (post.letters.length < target) {
+      post.letters.push({
+        ch: post.source[(j * 7) % post.source.length] ?? '·',
+        a:  Math.random() * Math.PI * 2,
+        r:  0.25 + Math.random() * 0.75,
+        h:  Math.random(),
+        v:  0.5 + Math.random() * 0.9,
+        ph: Math.random() * Math.PI * 2,
+      });
+      j++;
+    }
+    if (post.count === 0) post.sheet = null;
+  }
+
+  // ─── ANIMATION ──────────────────────────────────────────────
+
+  private animate(dt: number): void {
+    const still = this.reduced.matches;
+    // Caméra : la dalle s'étend en douceur vers sa cible
+    this.ext = still ? this.extTarget : this.ext + (this.extTarget - this.ext) * (1 - Math.exp(-dt * CAMERA_RATE));
+
+    if (!still) {
+      for (const post of this.posts) {
+        for (const l of post.letters) {
+          l.a += l.v * dt * 0.6;
+          l.h += l.v * dt * 0.2;
+          if (l.h > 1) l.h -= 1;
+        }
       }
     }
 
-    const total = this.chars.length;
-    this.emptyEl.style.display = total === 0 ? '' : 'none';
-    this.countEl.textContent   = t(totalAgents > 1 ? 'bureau.agentsPl' : 'bureau.agents', { n: totalAgents });
-  }
-
-  private computeTargets(agents: GameState['agents'], total: number): Record<string, number> {
-    const targets: Record<string, number> = {};
-    if (total === 0) return targets;
-
-    if (total <= MAX_VISIBLE) {
-      for (const [id, { count }] of Object.entries(agents)) {
-        if (count > 0) targets[id] = count;
-      }
-      return targets;
-    }
-
-    const ratio = MAX_VISIBLE / total;
-    let used = 0;
-    for (const [id, { count }] of Object.entries(agents)) {
-      if (count === 0) continue;
-      const alloc = Math.max(1, Math.round(count * ratio));
-      targets[id] = alloc;
-      used += alloc;
-    }
-    while (used > MAX_VISIBLE) {
-      const max = Object.entries(targets).sort((a, b) => b[1] - a[1])[0];
-      if (!max || max[1] <= 1) break;
-      targets[max[0]]--;
-      used--;
-    }
-    return targets;
-  }
-
-  // ─── SPAWN / REMOVE ─────────────────────────────────────────
-
-  private spawn(agentId: string): void {
-    const cfg = CONFIGS[agentId];
-    if (!cfg) return;
-
-    const x = 6 + Math.random() * 82;
-    const y = 32 + Math.random() * 44; // min 32% pour que les bulles aient de la place
-    const bounceMs = ((1.5 / cfg.speedFactor) * 1000).toFixed(0);
-    const legMs    = ((0.7 / cfg.speedFactor) * 1000).toFixed(0);
-    const name     = cfg.names[Math.floor(Math.random() * cfg.names.length)];
-
-    const el = document.createElement('div');
-    el.className = 'bureau-char spawning';
-    el.id = `char-${uid++}`;
-    el.dataset['type'] = agentId;
-    el.title = name;
-    el.style.cssText = [
-      `left:${x}%`, `top:${y}%`,
-      `--char-color:${cfg.color}`,
-      `--char-scale:${cfg.scale}`,
-      `--bounce-ms:${bounceMs}ms`,
-      `--leg-ms:${legMs}ms`,
-    ].join(';');
-    el.innerHTML = `
-      <div class="char-badge">${cfg.badge}</div>
-      <div class="char-inner">
-        <div class="char-head${cfg.squareHead ? ' square' : ''}">
-          <div class="char-eyes"><span></span><span></span></div>
-        </div>
-        <div class="char-body"></div>
-        <div class="char-legs"><span></span><span></span></div>
-      </div>
-      <div class="char-name">${name}</div>
-    `;
-
-    this.container.appendChild(el);
-    setTimeout(() => el.classList.remove('spawning'), 600);
-
-    this.chars.push({
-      agentId, name, el, x, y, prevX: x,
-      wanderTimer:   Math.random() * 3 + 1,
-      workTimer:     Math.random() * 5 + 2,
-      bubbleTimer:   Math.random() * 8 + 5,
-      particleTimer: Math.random() * 3 + 1,
-      isWorking: false,
-    });
-  }
-
-  private remove(idx: number): void {
-    const char = this.chars[idx];
-    char.el.classList.add('despawning');
-    setTimeout(() => char.el.remove(), 380);
-    this.chars.splice(idx, 1);
-  }
-
-  // ─── TICK ───────────────────────────────────────────────────
-
-  private tick(dt: number): void {
-    // Tick fondateur (mouvement lent + dialogues spéciaux)
-    if (this.founder) {
-      this.tickChar(this.founder, dt, 0.35, FOUNDER_DIALOGUES);
-    }
-
-    for (const char of this.chars) {
-      const spd = CONFIGS[char.agentId]?.speedFactor ?? 1;
-      const dialogues = CONFIGS[char.agentId]?.dialogues ?? [];
-      this.tickChar(char, dt, spd, dialogues);
-    }
-  }
-
-  private tickChar(char: LiveChar, dt: number, speedFactor: number, dialogues: string[]): void {
-    // Working toggle
-    char.workTimer -= dt;
-    if (char.workTimer <= 0) {
-      char.isWorking = !char.isWorking;
-      char.el.classList.toggle('working', char.isWorking);
-      char.workTimer = 2.5 + Math.random() * 5;
-    }
-
-    // Déplacement
-    char.wanderTimer -= dt;
-    if (char.wanderTimer <= 0) {
-      char.prevX = char.x;
-      char.x = clamp(char.x + (Math.random() - 0.5) * 28 * speedFactor, 4, 88);
-      char.y = clamp(char.y + (Math.random() - 0.5) * 18 * speedFactor, 32, 80);
-      char.el.style.left = `${char.x}%`;
-      char.el.style.top  = `${char.y}%`;
-      char.el.classList.toggle('facing-left', char.x < char.prevX);
-      char.wanderTimer = (1.5 + Math.random() * 3.5) / Math.max(speedFactor, 0.1);
-    }
-
-    // Bulle de dialogue
-    char.bubbleTimer -= dt;
-    if (char.bubbleTimer <= 0 && dialogues.length > 0) {
-      this.spawnBubble(char, dialogues);
-      char.bubbleTimer = 8 + Math.random() * 10;
-    }
-
-    // Particule € (agents seulement, pas le fondateur)
-    if (char.isWorking && char.agentId !== 'founder') {
-      char.particleTimer -= dt;
-      if (char.particleTimer <= 0) {
-        this.spawnParticle(char);
-        char.particleTimer = 2 + Math.random() * 3;
+    // Feuilles : une nouvelle de temps en temps sur un poste occupé
+    this.sheetTimer -= dt;
+    const active = this.posts.filter(p => p.sheet).length;
+    const maxSheets = this.phone.matches ? 1 : 2;
+    if (this.sheetTimer <= 0) {
+      this.sheetTimer = SHEET_GAP_MIN + Math.random() * (SHEET_GAP_MAX - SHEET_GAP_MIN);
+      const free = this.posts.filter(p => p.count > 0 && !p.sheet);
+      if (active < maxSheets && free.length) {
+        const post = free[Math.floor(Math.random() * free.length)]!;
+        const lines = AGENT_LINES[post.id] ?? [post.name];
+        const text = lines[Math.floor(Math.random() * lines.length)]!;
+        post.sheet = { text, typed: still ? text.length : 0, acc: 0, hold: SHEET_HOLD + (still ? 1.5 : 0), flights: [] };
       }
     }
+    for (const post of this.posts) {
+      const sh = post.sheet;
+      if (!sh) continue;
+      if (sh.typed < sh.text.length) {
+        sh.acc += dt * SHEET_TYPE_CPS;
+        while (sh.acc >= 1 && sh.typed < sh.text.length) {
+          sh.acc -= 1;
+          const ch = sh.text[sh.typed]!;
+          if (ch.trim()) sh.flights.push({ ch, t: 0, x0: post.sx, y0: post.top - this.S * 0.6, idx: sh.typed });
+          sh.typed++;
+        }
+      } else {
+        sh.hold -= dt;
+        if (sh.hold <= -SHEET_FADE) post.sheet = null;
+      }
+      for (const f of sh.flights) f.t += dt * 2.4;
+      sh.flights = sh.flights.filter(f => f.t < 1);
+    }
   }
 
-  // ─── EFFETS ─────────────────────────────────────────────────
+  // ─── RENDU ──────────────────────────────────────────────────
 
-  private spawnBubble(char: LiveChar, dialogues: string[]): void {
-    if (dialogues.length === 0) return;
-
-    // Supprimer les bulles existantes sur ce perso
-    char.el.querySelector('.char-bubble')?.remove();
-
-    const text = dialogues[Math.floor(Math.random() * dialogues.length)];
-    const el = document.createElement('div');
-    el.className = 'char-bubble';
-    el.textContent = text;
-    char.el.appendChild(el);
-
-    setTimeout(() => el.remove(), 3200);
+  private resize(): void {
+    const r = this.bureauEl.getBoundingClientRect();
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    this.W = Math.round(r.width);
+    this.H = Math.round(r.height);
+    this.canvas.width  = Math.max(1, Math.round(this.W * dpr));
+    this.canvas.height = Math.max(1, Math.round(this.H * dpr));
+    this.canvas.style.width  = `${this.W}px`;
+    this.canvas.style.height = `${this.H}px`;
+    this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    if (this.reduced.matches || document.hidden) this.draw();
   }
 
-  private spawnParticle(char: LiveChar): void {
-    const cfg = CONFIGS[char.agentId];
-    const el  = document.createElement('div');
-    el.className = 'char-particle';
-    el.textContent = '€';
-    el.style.cssText = `left:${char.x + 2}%;top:${char.y - 2}%;color:${cfg?.color ?? '#00ff88'}`;
-    this.container.appendChild(el);
-    setTimeout(() => el.remove(), 1400);
+  /** Place la caméra pour que toute la dalle et ses nuées tiennent dans le canvas. */
+  private frame(): void {
+    const padX = 18;
+    const padTop = 34;
+    const padBottom = this.phone.matches ? 78 : 46;
+    const above = 2.6; // nuées et feuilles au-dessus des postes du fond (en S)
+    const below = 0.5; // épaisseur de la dalle et noms gravés
+    const e = this.ext;
+    const sW = (this.W - padX * 2) / (3.464 * e);
+    const sH = (this.H - padTop - padBottom) / (2 * e + above + below);
+    this.S = Math.max(8, Math.min(MAX_S, sW, sH));
+    this.CX = this.W / 2;
+    const used = (2 * e + above + below) * this.S;
+    const top = padTop + Math.max(0, (this.H - padTop - padBottom - used) / 2);
+    this.CY = top + (above + e) * this.S;
   }
-}
 
-function clamp(v: number, min: number, max: number): number {
-  return Math.max(min, Math.min(max, v));
+  private iso(gx: number, gy: number, z = 0): [number, number] {
+    return [this.CX + (gx - gy) * this.S * 0.866, this.CY + (gx + gy) * this.S * 0.5 - z * this.S / 60];
+  }
+
+  private draw(): void {
+    const ctx = this.ctx;
+    ctx.clearRect(0, 0, this.W, this.H);
+    if (this.W === 0) return;
+    this.frame();
+    this.drawSlab();
+
+    const order = [...this.posts].sort((a, b) => (a.gx + a.gy) - (b.gx + b.gy));
+    const founderDepth = 0;
+    let founderDrawn = false;
+    for (const post of order) {
+      if (!founderDrawn && post.gx + post.gy > founderDepth) { this.drawFounder(); founderDrawn = true; }
+      this.drawPost(post);
+    }
+    if (!founderDrawn) this.drawFounder();
+
+    for (const post of order) this.drawCloud(post);
+    for (const post of order) this.drawSheet(post);
+  }
+
+  private poly(points: Array<[number, number]>): void {
+    const ctx = this.ctx;
+    ctx.beginPath();
+    points.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y));
+    ctx.closePath();
+  }
+
+  private drawSlab(): void {
+    const ctx = this.ctx;
+    const e = this.ext;
+    const corners: Array<[number, number]> = [this.iso(-e, -e), this.iso(e, -e), this.iso(e, e), this.iso(-e, e)];
+    ctx.save();
+    ctx.shadowColor = rgba(this.C.encre, 0.16);
+    ctx.shadowBlur = 50;
+    ctx.shadowOffsetY = 22;
+    ctx.fillStyle = rgba(this.slabTop, 1);
+    this.poly(corners);
+    ctx.fill();
+    ctx.restore();
+
+    // Tranches avant
+    const ep = this.S * 0.18;
+    const [c0, c1, c2, c3] = corners as [[number, number], [number, number], [number, number], [number, number]];
+    ctx.fillStyle = rgba(this.slabL, 1);
+    this.poly([c3, c2, [c2[0], c2[1] + ep], [c3[0], c3[1] + ep]]);
+    ctx.fill();
+    ctx.fillStyle = rgba(this.slabR, 1);
+    this.poly([c2, c1, [c1[0], c1[1] + ep], [c2[0], c2[1] + ep]]);
+    ctx.fill();
+    void c0;
+
+    // Quadrillage gravé
+    ctx.strokeStyle = rgba(this.C.encre, 0.05);
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (let x = -Math.floor(e * 2) / 2; x <= e; x += 0.5) {
+      ctx.moveTo(...this.iso(x, -e)); ctx.lineTo(...this.iso(x, e));
+    }
+    for (let y = -Math.floor(e * 2) / 2; y <= e; y += 0.5) {
+      ctx.moveTo(...this.iso(-e, y)); ctx.lineTo(...this.iso(e, y));
+    }
+    ctx.stroke();
+
+    // Emplacements libres : un carré gravé là où un poste viendra
+    ctx.strokeStyle = rgba(this.C.brume, 0.35);
+    ctx.setLineDash([3, 4]);
+    for (const post of this.posts) {
+      if (post.count > 0) continue;
+      if (Math.max(Math.abs(post.gx), Math.abs(post.gy)) + POST_HALF > e) continue;
+      const w = POST_HALF;
+      this.poly([this.iso(post.gx - w, post.gy - w), this.iso(post.gx + w, post.gy - w), this.iso(post.gx + w, post.gy + w), this.iso(post.gx - w, post.gy + w)]);
+      ctx.stroke();
+    }
+    ctx.setLineDash([]);
+  }
+
+  /** Socle en volume : faces gauche, droite, dessus. Retourne le centre du dessus. */
+  private block(gx: number, gy: number, half: number, h: number, top: Rgb, left: Rgb, right: Rgb, edge: string | null): [number, number] {
+    const ctx = this.ctx;
+    const P = (x: number, y: number, z: number) => this.iso(gx + x, gy + y, z);
+    const A = P(-half, half, 0), B = P(half, half, 0), Cc = P(half, -half, 0);
+    const At = P(-half, half, h), Bt = P(half, half, h), Ct = P(half, -half, h), Dt = P(-half, -half, h);
+    ctx.fillStyle = rgba(left, 1);
+    this.poly([A, B, Bt, At]); ctx.fill();
+    ctx.fillStyle = rgba(right, 1);
+    this.poly([B, Cc, Ct, Bt]); ctx.fill();
+    const g = ctx.createLinearGradient(Dt[0], Dt[1], Bt[0], Bt[1]);
+    g.addColorStop(0, rgba(mix(top, this.C.socle, 0.6), 1));
+    g.addColorStop(1, rgba(top, 1));
+    ctx.fillStyle = g;
+    this.poly([Dt, Ct, Bt, At]); ctx.fill();
+    if (edge) {
+      ctx.strokeStyle = edge;
+      ctx.lineWidth = 1.4;
+      this.poly([Dt, Ct, Bt, At]); ctx.stroke();
+    }
+    return P(0, 0, h);
+  }
+
+  private drawPost(post: Post): void {
+    if (post.count <= 0) return;
+    const hovered = this.hovered === post.id;
+    const centre = this.block(post.gx, post.gy, POST_HALF, POST_HEIGHT, this.C.socle, this.faceL, this.faceR,
+      rgba(this.C.outremer, hovered ? 0.95 : 0.5));
+    post.sx = centre[0];
+    post.sy = centre[1];
+    post.top = centre[1];
+
+    // Compteur posé sur la face avant
+    const ctx = this.ctx;
+    const [nx, ny] = this.iso(post.gx + POST_HALF * 0.5, post.gy + POST_HALF, POST_HEIGHT * 0.45);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = `500 ${Math.max(10, this.S * 0.2)}px ${this.mono}`;
+    ctx.fillStyle = rgba(this.C.encre, 0.75);
+    ctx.fillText(`×${post.count}`, nx, ny);
+    ctx.textBaseline = 'alphabetic';
+    ctx.textAlign = 'left';
+  }
+
+  private drawFounder(): void {
+    const ctx = this.ctx;
+    const hovered = this.hovered === 'founder';
+    const [cx, cy] = this.block(0, 0, FOUNDER_HALF, FOUNDER_HEIGHT, this.goldTop, this.goldL, this.goldR,
+      rgba(this.C.ambre, hovered ? 1 : 0.7));
+    const S = this.S;
+
+    // Fauteuil vide, vu de trois quarts : assise, dossier, deux pieds
+    const z0 = FOUNDER_HEIGHT;
+    const P = (x: number, y: number, z: number) => this.iso(x, y, z0 + z);
+    const ink = rgba(this.C.encre, 0.85);
+    ctx.lineWidth = Math.max(1, S * 0.03);
+    ctx.lineJoin = 'round';
+    ctx.strokeStyle = ink;
+    // Pied central
+    ctx.beginPath(); ctx.moveTo(...P(0, 0, 2)); ctx.lineTo(...P(0, 0, 13)); ctx.stroke();
+    // Assise
+    const s = 0.38;
+    ctx.fillStyle = rgba(this.C.socle, 1);
+    this.poly([P(-s, -s, 13), P(s, -s, 13), P(s, s, 13), P(-s, s, 13)]);
+    ctx.fill(); ctx.stroke();
+    // Dossier (côté fond)
+    ctx.fillStyle = rgba(mix(this.C.socle, this.C.ambre, 0.12), 1);
+    this.poly([P(-s, -s, 13), P(s, -s, 13), P(s, -s, 46), P(-s, -s, 46)]);
+    ctx.fill(); ctx.stroke();
+
+    // Multiplicateur écrit à la main sur le dossier
+    if (this.prestigeCount > 0) {
+      const [mx, my] = P(0, -s, 31);
+      ctx.save();
+      ctx.translate(mx, my);
+      ctx.rotate(-0.12);
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.font = `800 ${Math.max(10, S * 0.22)}px ${this.display}`;
+      ctx.fillStyle = rgba(this.C.ambre, 1);
+      ctx.fillText(`×${this.founderMult.toFixed(2)}`, 0, 0);
+      ctx.restore();
+    }
+    void cx; void cy;
+  }
+
+  private drawCloud(post: Post): void {
+    if (!post.letters.length) return;
+    const ctx = this.ctx;
+    const S = this.S;
+    const cx = post.sx, cy = post.top;
+    const height = S * 1.5;
+    const col = this.C.outremer;
+    const t = this.time;
+
+    // Lueur au cœur de la nuée
+    const g = ctx.createRadialGradient(cx, cy - height * 0.5, 0, cx, cy - height * 0.5, S * 0.95);
+    g.addColorStop(0, rgba(col, 0.13));
+    g.addColorStop(1, rgba(col, 0));
+    ctx.fillStyle = g;
+    ctx.fillRect(cx - S, cy - height * 0.5 - S, S * 2, S * 2);
+
+    ctx.textAlign = 'center';
+    ctx.font = `500 ${Math.max(7, S * 0.17)}px ${this.mono}`;
+    for (const l of post.letters) {
+      const r = l.r * S * (0.55 + 0.1 * Math.sin(t * 0.8 + l.ph));
+      const x = cx + Math.cos(l.a) * r;
+      const y = cy - S * 0.15 - l.h * height + Math.sin(l.a) * r * 0.38 + Math.sin(t * 1.3 + l.ph) * 2;
+      const depth = (Math.sin(l.a) + 1) / 2; // devant / derrière
+      const alpha = (0.3 + 0.62 * depth) * Math.sin(Math.PI * Math.min(1, l.h * 1.1 + 0.02));
+      ctx.fillStyle = rgba(col, alpha);
+      ctx.fillText(l.ch, x, y);
+    }
+    ctx.textAlign = 'left';
+  }
+
+  private drawSheet(post: Post): void {
+    const sh = post.sheet;
+    if (!sh) return;
+    const ctx = this.ctx;
+    const S = this.S;
+    const fs = Math.max(10, Math.min(14, S * 0.2));
+    ctx.font = `500 ${fs}px ${this.mono}`;
+    const charW = ctx.measureText('M').width;
+    const fw = charW * sh.text.length + 26;
+    const fh = fs * 2.1;
+    let fx = post.sx - fw / 2;
+    let fy = post.top - S * 1.85 - fh;
+    fx = Math.max(8, Math.min(this.W - fw - 8, fx));
+    fy = Math.max(30, fy);
+    const fade = sh.hold < 0 ? Math.max(0, 1 + sh.hold / SHEET_FADE) : 1;
+
+    ctx.save();
+    ctx.globalAlpha = fade;
+    ctx.shadowColor = rgba(this.C.encre, 0.14);
+    ctx.shadowBlur = 18;
+    ctx.shadowOffsetY = 8;
+    ctx.fillStyle = rgba(this.C.socle, 0.97);
+    this.round(fx, fy, fw, fh, 7);
+    ctx.fill();
+    ctx.restore();
+
+    ctx.save();
+    ctx.globalAlpha = fade;
+    ctx.fillStyle = rgba(this.C.outremer, 0.9);
+    ctx.fillRect(fx, fy + 6, 2.5, fh - 12);
+    const tx = fx + 14;
+    const ty = fy + fh / 2 + fs * 0.36;
+    // Lettres déjà posées (celles en vol n'apparaissent qu'à l'arrivée)
+    const flying = new Set(sh.flights.map(f => f.idx));
+    ctx.fillStyle = rgba(this.C.encre, 1);
+    for (let i = 0; i < sh.typed; i++) {
+      if (flying.has(i)) continue;
+      ctx.fillText(sh.text[i]!, tx + i * charW, ty);
+    }
+    // Curseur
+    if (sh.typed < sh.text.length || Math.sin(this.time * 6) > 0) {
+      ctx.fillStyle = rgba(this.C.outremer, 1);
+      ctx.fillRect(tx + sh.typed * charW + 1, ty - fs * 0.85, 2, fs);
+    }
+    // Lettres en vol, de la nuée vers leur place
+    for (const f of sh.flights) {
+      const e = easeOut(f.t);
+      const x = f.x0 + (tx + f.idx * charW - f.x0) * e;
+      const y = f.y0 + (ty - f.y0) * e - Math.sin(e * Math.PI) * S * 0.4;
+      ctx.fillStyle = rgba(this.C.outremer, 1 - f.t * 0.5);
+      ctx.fillText(f.ch, x, y);
+    }
+    ctx.restore();
+  }
+
+  private round(x: number, y: number, w: number, h: number, r: number): void {
+    const ctx = this.ctx;
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+
+  // ─── SURVOL / TOUCHER ───────────────────────────────────────
+
+  private pick(e: PointerEvent, touch: boolean): void {
+    const r = this.canvas.getBoundingClientRect();
+    const x = e.clientX - r.left;
+    const y = e.clientY - r.top;
+    const S = this.S;
+    let found: string | null = null;
+    let best = Infinity;
+    const candidates: Array<{ id: string; sx: number; top: number }> = this.posts
+      .filter(p => p.count > 0)
+      .map(p => ({ id: p.id, sx: p.sx, top: p.top }));
+    const [fx, fy] = this.iso(0, 0, FOUNDER_HEIGHT);
+    candidates.push({ id: 'founder', sx: fx, top: fy });
+    for (const c of candidates) {
+      const dx = Math.abs(x - c.sx);
+      const dy = y - c.top; // de -1.4 S (haut de la nuée) à +0.6 S (pied du socle)
+      if (dx > S * 0.75 || dy < -S * 1.7 || dy > S * 0.8) continue;
+      const d = dx + Math.abs(dy + S * 0.4) * 0.5;
+      if (d < best) { best = d; found = c.id; }
+    }
+    this.setHover(found);
+    if (touch) {
+      if (this.touchTimer) clearTimeout(this.touchTimer);
+      this.touchTimer = setTimeout(() => this.setHover(null), TOUCH_TIP_MS);
+    }
+  }
+
+  private setHover(id: string | null): void {
+    if (id === this.hovered) return;
+    this.hovered = id;
+    this.canvas.style.cursor = id ? 'help' : '';
+    if (!id) { this.tooltip.classList.add('hidden'); return; }
+
+    let title: string;
+    let detail: string;
+    let x: number;
+    let y: number;
+    if (id === 'founder') {
+      title  = t('bureau.founder');
+      detail = this.prestigeCount > 0 ? `×${this.founderMult.toFixed(2)}` : t('bureau.founderHint');
+      [x, y] = this.iso(0, 0, FOUNDER_HEIGHT);
+    } else {
+      const post = this.posts.find(p => p.id === id)!;
+      title  = post.name;
+      detail = t(post.count > 1 ? 'bureau.agentsPl' : 'bureau.agents', { n: post.count });
+      x = post.sx;
+      y = post.top;
+    }
+    this.tooltip.innerHTML = '<strong></strong><span></span>';
+    this.tooltip.querySelector('strong')!.textContent = title;
+    this.tooltip.querySelector('span')!.textContent = detail;
+    this.tooltip.classList.remove('hidden');
+    const w = this.tooltip.offsetWidth;
+    const left = Math.max(6, Math.min(this.W - w - 6, x - w / 2));
+    this.tooltip.style.left = `${left}px`;
+    this.tooltip.style.top  = `${Math.max(6, y + this.S * 0.55)}px`;
+  }
 }

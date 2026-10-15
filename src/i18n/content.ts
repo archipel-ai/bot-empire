@@ -12,7 +12,7 @@ import { REPUTATION_PERKS } from '../config/reputationPerks.ts';
 import { CONTRACTS } from '../config/contracts.ts';
 import { MARKET_EVENTS } from '../config/marketEvents.ts';
 import { INCIDENTS, type IncidentQuestion } from '../systems/IncidentSystem.ts';
-import { STAGES, CONFIGS, FOUNDER_DIALOGUES } from '../ui/Bureau.ts';
+import { STAGES, AGENT_LINES } from '../ui/Bureau.ts';
 
 const EN_AGENTS: Record<string, { name: string; description: string }> = {
   'bot-workflows':    { name: 'Workflow Bot',     description: 'Automates repetitive tasks with n8n' },
@@ -198,22 +198,15 @@ const EN_STAGES: Record<string, { label: string; sublabel: string }> = {
   'unicorn':     { label: 'Headquarters',      sublabel: 'Unicorn status!' },
 };
 
-const EN_CHAR_DIALOGUES: Record<string, string[]> = {
-  'bot-workflows':    ['workflow running ⚙️', 'HTTP 200 OK ✓', 'npm install...', 'trigger live!', 'retry #3...', '42 tasks/min', 'looping...'],
-  'agent-copy':       ['"Your brand..."', 'SEO ×3 ✓', 'viral thread?', 'H1 optimized!', '"Perfect CTA"', 'engagement +40%', 'landing page wip'],
-  'agent-analytics':  ['p-value: 0.03', 'dashboard open', 'R² = 0.97 🎯', 'anomaly found', 'report ready ✓', 'KPIs going up!', 'A/B test live'],
-  'agent-audit':      ['bug found 🔍', 'tech debt: 4d', 'GDPR compliant ✓', 'audit done!', 'vuln patched', 'score: 94/100', 'tests passed ✓'],
-  'agent-legal':      ['terms updated ✓', 'regulator notified', 'contract signed!', 'clause approved', 'GDPR OK 📋', 'public tender!', 'DPA drafted'],
-  'agent-growth':     ['+500 leads!', 'viral on LI!', 'partner signed', 'CTR: 12% 🔥', 'pipeline full', 'ARR: +40% 📈', 'funnel live'],
-  'agent-supervisor': ['nice work team', 'target hit ✓', 'meeting at 2pm', 'max performance', '⭐ excellent!', "let's scale! 🚀", 'great delivery'],
+const EN_AGENT_LINES: Record<string, string[]> = {
+  'bot-workflows':    ['n8n workflow restarted', 'webhook received', 'HTTP 200 OK', 'retry #3 succeeded', '42 tasks/min', '6 am cron started'],
+  'agent-copy':       ['draft v2 ready', 'H1 title rewritten', 'newsletter sent', 'LinkedIn post queued', 'product page shipped', 'hook A/B tested'],
+  'agent-analytics':  ['dashboard updated', 'anomaly spotted', 'A/B test live', 'weekly report ready', 'cohort analysed', 'KPIs trending up'],
+  'agent-audit':      ['GDPR audit done', 'vulnerability fixed', 'score: 94/100', 'tech debt: 4 days', 'tests all green', 'logs reviewed'],
+  'agent-legal':      ['terms updated', 'clause approved', 'DPA drafted', 'quote sent', 'contract reviewed', 'GDPR register kept'],
+  'agent-growth':     ['+500 leads', 'follow-up #2 sent', 'partner signed', 'pipeline full', 'demo booked', 'campaign live'],
+  'agent-supervisor': ["today's priorities", 'team review', 'delivery approved', 'workload balanced', 'target reached', 'agents in sync'],
 };
-
-const EN_FOUNDER_DIALOGUES = [
-  "Let's scale! 🚀", 'Looking good...', 'Excellent work!',
-  'Another client!', 'The plan is working', '💰 KPIs in the green!',
-  "Let's build! ⚡", 'Series A in sight 👀', 'Pipeline full 🔥',
-  'Claude, keep going...', 'Clear vision 🎯', 'The empire grows.',
-];
 
 /** Remplace en place les textes de contenu par leur version anglaise (sans effet en français). */
 export function applyContentLanguage(): void {
@@ -227,9 +220,5 @@ export function applyContentLanguage(): void {
   MARKET_EVENTS.forEach(e => Object.assign(e, EN_MARKET[e.id]));
   INCIDENTS.forEach(q => Object.assign(q, EN_INCIDENTS[q.client]));
   STAGES.forEach(s => Object.assign(s, EN_STAGES[s.id]));
-  Object.entries(CONFIGS).forEach(([id, cfg]) => {
-    const dialogues = EN_CHAR_DIALOGUES[id];
-    if (dialogues) cfg.dialogues = dialogues;
-  });
-  FOUNDER_DIALOGUES.splice(0, FOUNDER_DIALOGUES.length, ...EN_FOUNDER_DIALOGUES);
+  Object.entries(EN_AGENT_LINES).forEach(([id, lines]) => { AGENT_LINES[id] = lines; });
 }
