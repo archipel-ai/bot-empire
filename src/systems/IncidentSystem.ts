@@ -1,6 +1,7 @@
 /**
  * IncidentSystem — Urgences clients aléatoires avec mini-quiz IA éducatif.
- * Apparaît toutes les 2-5 min de jeu actif (au moins 1 agent requis).
+ * Proposé toutes les 3-5 min de jeu actif (au moins 1 agent requis), sous forme
+ * de notification facultative : le joueur l'ouvre pour un bonus ou l'ignore.
  */
 
 export interface IncidentQuestion {
@@ -185,13 +186,18 @@ const INCIDENTS: IncidentQuestion[] = [
   },
 ];
 
+const FIRST_INCIDENT_MIN_S = 210; // premier incident : 3.5-5 min après lancement
+const FIRST_INCIDENT_SPAN_S = 90;
+const NEXT_INCIDENT_MIN_S  = 180; // suivants : 3-5 min
+const NEXT_INCIDENT_SPAN_S = 120;
+
 export class IncidentSystem {
   private nextIn: number;
   private active = false;
   private usedIndices: Set<number> = new Set();
 
   constructor() {
-    this.nextIn = 210 + Math.random() * 90; // Premier incident : 3.5-5 min après lancement
+    this.nextIn = FIRST_INCIDENT_MIN_S + Math.random() * FIRST_INCIDENT_SPAN_S;
   }
 
   tick(dt: number, hasAgents: boolean): IncidentQuestion | null {
@@ -204,9 +210,10 @@ export class IncidentSystem {
     return null;
   }
 
+  /** Incident terminé (résolu, ignoré ou expiré) : planifie le suivant. */
   resolve(): void {
     this.active = false;
-    this.nextIn = 180 + Math.random() * 120; // Prochain : 3-5 min
+    this.nextIn = NEXT_INCIDENT_MIN_S + Math.random() * NEXT_INCIDENT_SPAN_S;
   }
 
   private pickQuestion(): IncidentQuestion {

@@ -1542,6 +1542,35 @@ body {
 
 /* Notification incident */
 .notif.red { border-left-color: #ef4444; }
+.incident-skip { width: 100%; margin-top: 12px; flex: none; }
+.incident-notice {
+  pointer-events: auto; /* le conteneur #notifications laisse passer les clics */
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+}
+.incident-notice-open {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: var(--text-primary);
+  font: inherit;
+  text-align: left;
+  padding: 10px 0 10px 14px;
+  cursor: pointer;
+}
+.incident-notice-open:hover { color: var(--accent-orange); }
+.incident-notice-close {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 18px;
+  cursor: pointer;
+  padding: 8px 12px 8px 4px;
+  min-height: 36px;
+}
+.incident-notice-close:hover { color: var(--text-primary); }
 
 /* ===== CONTRATS URGENTS ===== */
 

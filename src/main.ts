@@ -85,15 +85,14 @@ const incidentClient     = document.getElementById('incident-client')!;
 const incidentProblem    = document.getElementById('incident-problem')!;
 const incidentQuestion   = document.getElementById('incident-question')!;
 const incidentAnswers    = document.getElementById('incident-answers')!;
-const incidentTimerFill  = document.getElementById('incident-timer-fill')!;
-const incidentTimerLbl   = document.getElementById('incident-timer-lbl')!;
+const incidentSkipBtn    = document.getElementById('btn-incident-skip') as HTMLButtonElement;
 const incidentResult     = document.getElementById('incident-result')!;
 const incidentResultIcon = document.getElementById('incident-result-icon')!;
 const incidentLesson     = document.getElementById('incident-lesson')!;
-let incidentTimer        = 0;
-let incidentActive       = false;
 let incidentResolved     = false;
-const INCIDENT_DURATION  = 45;
+let incidentOfferLeft    = 0;   // secondes avant que la notification d'incident ne disparaisse
+let incidentNotice: HTMLElement | null = null;
+const INCIDENT_OFFER_DURATION = 90; // l'offre reste visible 90 s, sans pénalité si ignorée
 
 // Éléments ÉCHO
 const btnEcho       = document.getElementById('btn-echo')     as HTMLButtonElement;
@@ -317,21 +316,18 @@ function gameLoop(timestamp: number): void {
       milestoneIdx++;
     }
 
-    // Incidents — bloqués si une modal est déjà ouverte
+    // Incidents — simple notification, le joueur choisit de l'ouvrir ou non
     const hasAgents = Object.values(state.agents).some(a => a.count > 0);
     const newIncident = incident.tick(dt, hasAgents);
-    if (newIncident && !anyModalOpen()) showIncident(newIncident);
+    if (newIncident) offerIncident(newIncident);
 
     // Contrats
     contractSys.tick(state);
 
-    // Timer incident actif
-    if (incidentActive && !incidentResolved) {
-      incidentTimer -= dt;
-      const pct = Math.max(0, incidentTimer / INCIDENT_DURATION) * 100;
-      incidentTimerFill.style.width = `${pct}%`;
-      incidentTimerLbl.textContent  = `${Math.ceil(Math.max(0, incidentTimer))}s`;
-      if (incidentTimer <= 0) resolveIncident(null);
+    // Offre d'incident non ouverte : expire en silence
+    if (incidentNotice) {
+      incidentOfferLeft -= dt;
+      if (incidentOfferLeft <= 0) endIncident();
     }
   }
 
@@ -637,19 +633,48 @@ function spawnRipple(e: MouseEvent): void {
 
 let currentIncident: IncidentQuestion | null = null;
 
+/** Affiche la notification d'incident : cliquable pour ouvrir le quiz, ou ignorable. */
+function offerIncident(q: IncidentQuestion): void {
+  currentIncident   = q;
+  incidentOfferLeft = INCIDENT_OFFER_DURATION;
+
+  const el = document.createElement('div');
+  el.className = 'notif orange incident-notice';
+  el.innerHTML = `
+    <button class="incident-notice-open" type="button"></button>
+    <button class="incident-notice-close" type="button" aria-label="Ignorer l'incident">×</button>
+  `;
+  el.querySelector('.incident-notice-open')!.textContent =
+    `⚠️ Incident chez ${q.client} — aider (+${formatCurrency(q.reward)})`;
+  el.querySelector('.incident-notice-open')!.addEventListener('click', () => {
+    removeIncidentNotice();
+    showIncident(q);
+  });
+  el.querySelector('.incident-notice-close')!.addEventListener('click', () => endIncident());
+  document.getElementById('notifications')!.prepend(el);
+  incidentNotice = el;
+}
+
+function removeIncidentNotice(): void {
+  incidentNotice?.remove();
+  incidentNotice = null;
+}
+
+/** Clôt l'incident courant (résolu, ignoré ou expiré) et planifie le suivant. */
+function endIncident(): void {
+  removeIncidentNotice();
+  currentIncident = null;
+  incident.resolve();
+}
+
 function showIncident(q: IncidentQuestion): void {
   currentIncident  = q;
-  incidentActive   = true;
   incidentResolved = false;
-  incidentTimer    = INCIDENT_DURATION;
 
   incidentUrgency.textContent  = q.urgency;
   incidentClient.textContent   = q.client;
   incidentProblem.textContent  = q.problem;
   incidentQuestion.textContent = q.question;
-
-  incidentTimerFill.style.width = '100%';
-  incidentTimerLbl.textContent  = `${INCIDENT_DURATION}s`;
 
   // Mélanger les réponses pour que la bonne ne soit pas toujours B
   const indices = [0, 1, 2] as const;
@@ -670,11 +695,11 @@ function showIncident(q: IncidentQuestion): void {
   });
 
   incidentResult.classList.add('hidden');
+  incidentSkipBtn.classList.remove('hidden');
   openModal('incident-overlay');
-  notify('⚠️ Incident client — répondez vite !', 'orange');
 }
 
-function resolveIncident(chosen: number | null): void {
+function resolveIncident(chosen: number): void {
   if (incidentResolved || !currentIncident) return;
   incidentResolved = true;
 
@@ -698,24 +723,24 @@ function resolveIncident(chosen: number | null): void {
     incidentLesson.textContent     = `+${formatCurrency(q.reward)} encaissés ! ${q.lesson}`;
     notify(`✅ Incident résolu ! +${formatCurrency(q.reward)}`, 'green');
     playPurchase();
-  } else if (chosen === null) {
-    incidentResultIcon.textContent = '⏱️';
-    incidentLesson.textContent     = `Temps écoulé. ${q.lesson}`;
-    notify('⏱️ Trop lent — le client est mécontent !', 'orange');
   } else {
     incidentResultIcon.textContent = '❌';
     incidentLesson.textContent     = q.lesson;
     notify('❌ Mauvaise réponse — incident non résolu.', 'orange');
   }
 
+  incidentSkipBtn.classList.add('hidden');
   incidentResult.classList.remove('hidden');
 }
 
 document.getElementById('btn-incident-close')!.addEventListener('click', () => {
   closeModal('incident-overlay');
-  incidentActive = false;
-  incident.resolve();
-  currentIncident = null;
+  endIncident();
+});
+
+incidentSkipBtn.addEventListener('click', () => {
+  closeModal('incident-overlay');
+  endIncident();
 });
 
 // ─── CONTRATS ─────────────────────────────────────────────────
