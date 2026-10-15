@@ -204,6 +204,14 @@ button:focus-visible, label:focus-within, textarea:focus-visible, input:focus-vi
 }
 .btn-lang:hover { border-color: var(--outremer); color: var(--outremer); }
 
+/* Barre « Prochain client » */
+.next-client { display: flex; flex-direction: column; gap: 5px; width: clamp(120px, 16vw, 220px); min-width: 0; }
+.next-client-top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.next-client-top .label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.next-client-pct { font-family: var(--mono); font-size: 12px; color: var(--ambre); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.next-client-track { height: 5px; border-radius: 99px; background: var(--trait); overflow: hidden; }
+.next-client-fill { height: 100%; width: 0; background: var(--ambre); border-radius: 99px; transition: width .4s ease; }
+
 /* ===== MISE EN PAGE =====
    Ordinateur (≥ 900 px, ou paysage ≥ 640 px) : scène à gauche (~62 %), onglets à droite.
    Téléphone : scène en haut (~46 % de la hauteur), onglets dans un tiroir en bas. */
@@ -552,6 +560,35 @@ button:focus-visible, label:focus-within, textarea:focus-visible, input:focus-vi
 .client-badge.locked { background: var(--trait); color: var(--brume); }
 
 .upgrade-card.purchased { opacity: .55; }
+
+/* Objets encore bloqués : silhouette « ??? » */
+.silhouette { background: transparent; border-style: dashed; box-shadow: none; }
+.silhouette .agent-icon, .silhouette .client-icon, .silhouette .upgrade-icon {
+  background: var(--trait);
+  color: var(--brume);
+  font-family: var(--display);
+  font-weight: 800;
+}
+.silhouette .agent-name, .silhouette .client-name, .silhouette .upgrade-name { color: var(--brume); letter-spacing: .12em; }
+.silhouette .agent-desc, .silhouette .upgrade-desc { display: block; }
+
+/* Sélecteur ×1 / ×10 / max */
+.buy-mode { display: flex; align-items: center; gap: 4px; align-self: flex-end; padding: 3px; border-radius: 99px; background: var(--trait); }
+.buy-mode-label { font-family: var(--mono); font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--encre-pale); padding: 0 8px 0 10px; }
+.buy-mode-btn {
+  min-width: 44px;
+  min-height: 30px;
+  padding: 2px 10px;
+  border: none;
+  border-radius: 99px;
+  background: transparent;
+  color: var(--encre-pale);
+  font-family: var(--mono);
+  font-size: 12px;
+  cursor: pointer;
+}
+.buy-mode-btn.active { background: var(--socle); color: var(--outremer); box-shadow: var(--ombre); }
+.tab-empty { color: var(--encre-pale); text-align: center; padding: 40px 20px; }
 .upgrade-effect { font-size: 12px; color: var(--ambre); margin-top: 3px; font-weight: 600; }
 .btn-upgrade.purchased-btn { background: transparent; border-color: transparent; color: var(--encre-pale); cursor: default; }
 
@@ -1256,6 +1293,11 @@ button:focus-visible, label:focus-within, textarea:focus-visible, input:focus-vi
   .logo-text { display: none; }
   .currency-display { gap: 14px; }
   .currency-total { display: none; }
+  .currency-display { gap: 12px; }
+  .next-client { width: auto; flex: 1; min-width: 70px; }
+  .next-client-top .label { font-size: 9px; letter-spacing: .03em; }
+  .next-client-pct { font-size: 11px; }
+  .currency-main .label, .currency-rate .label { letter-spacing: .04em; }
   .currency-main span:not(.label) { font-size: 19px; }
   .currency-rate span:not(.label) { font-size: 13px; }
   .prestige-badge { padding: 2px 8px; }

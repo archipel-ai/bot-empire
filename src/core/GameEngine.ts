@@ -9,6 +9,7 @@ const PRESTIGE_SCALE          = 1.5;  // ×1.5 par prestige : chaque partie rest
 const PRESTIGE_BONUS_PER_LEVEL = 0.15;
 const BASE_CLICK_VALUE         = 1;  // 10 clics pour le premier agent (10 €)
 const MAX_OFFLINE_HOURS        = 8;
+const MAX_BULK_BUY             = 1_000; // garde-fou du mode d'achat « max »
 
 export interface TickResult {
   newClients: string[];
@@ -125,6 +126,40 @@ export class GameEngine {
         [agentId]: { count: (state.agents[agentId]?.count ?? 0) + 1 },
       },
     };
+  }
+
+  /** Coût cumulé de `n` agents achetés d'affilée (série géométrique du prix). */
+  getAgentBulkCost(state: GameState, agentId: string, n: number): number {
+    if (n <= 0) return 0;
+    const def = AGENTS.find(a => a.id === agentId)!;
+    const first = this.getAgentCost(state, agentId);
+    const m = def.costMultiplier;
+    return m === 1 ? first * n : first * (Math.pow(m, n) - 1) / (m - 1);
+  }
+
+  /** Nombre d'agents qu'on peut acheter d'affilée avec la trésorerie actuelle (plafonné). */
+  getAffordableAgentCount(state: GameState, agentId: string): number {
+    const def = AGENTS.find(a => a.id === agentId)!;
+    let price = this.getAgentCost(state, agentId);
+    let budget = state.currency;
+    let n = 0;
+    while (n < MAX_BULK_BUY && budget >= price) {
+      budget -= price;
+      price *= def.costMultiplier;
+      n++;
+    }
+    return n;
+  }
+
+  /** Achète jusqu'à `n` agents, un par un (chaque achat est validé comme un achat simple). */
+  buyAgents(state: GameState, agentId: string, n: number): GameState {
+    let next = state;
+    for (let i = 0; i < Math.min(n, MAX_BULK_BUY); i++) {
+      const after = this.buyAgent(next, agentId);
+      if (after === next) break;
+      next = after;
+    }
+    return next;
   }
 
   // ─── UPGRADES ──────────────────────────────────────────────

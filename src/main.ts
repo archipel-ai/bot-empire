@@ -7,7 +7,7 @@ import './style.css';
 import { GameEngine } from './core/GameEngine.ts';
 import { SaveSystem } from './core/SaveSystem.ts';
 import { type GameState } from './core/GameState.ts';
-import { Renderer } from './ui/Renderer.ts';
+import { Renderer, type BuyMode } from './ui/Renderer.ts';
 import { Bureau } from './ui/Bureau.ts';
 import { formatCurrency, formatDuration } from './utils/format.ts';
 import { playClick, playPurchase, playClientUnlock, playMilestone, playPrestige } from './utils/audio.ts';
@@ -384,13 +384,21 @@ btnEcho.addEventListener('click', () => {
   notify(t('echo.activated'), 'orange');
 });
 
-// Délégation — achat agent
+// Délégation — sélecteur ×1 / ×10 / max puis achat d'agents
 document.getElementById('tab-agents')!.addEventListener('click', (e) => {
+  const modeBtn = (e.target as Element).closest('[data-buy-mode]') as HTMLElement | null;
+  if (modeBtn) {
+    renderer.setBuyMode(modeBtn.dataset['buyMode'] as BuyMode);
+    return;
+  }
   const btn = (e.target as Element).closest('[data-buy-agent]') as HTMLElement | null;
   if (!btn) return;
   const agentId = btn.dataset['buyAgent']!;
   const prev = state.agents[agentId]?.count ?? 0;
-  state = engine.buyAgent(state, agentId);
+  const qty = renderer.getBuyQuantity(state, agentId);
+  // N'achète que si la quantité affichée est abordable (×10 : tout ou rien)
+  if (state.currency < engine.getAgentBulkCost(state, agentId, qty)) return;
+  state = engine.buyAgents(state, agentId, qty);
   if ((state.agents[agentId]?.count ?? 0) > prev) {
     renderer.markDirty();
     notify(t('agent.recruited'), 'green');
