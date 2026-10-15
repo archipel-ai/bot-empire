@@ -16,7 +16,8 @@ export function spawnFloatingNumber(value: number, originEl: HTMLElement): void 
 
 // ─── CONFETTIS PRESTIGE ───────────────────────────────────────
 
-const CONFETTI_COLORS = ['#00ff88', '#7c3aed', '#38bdf8', '#f97316', '#fbbf24', '#ec4899'];
+// Jetons de la direction artistique (voir style.css)
+const CONFETTI_COLORS = ['var(--outremer)', 'var(--ambre)', 'var(--encre)', 'var(--brume)'];
 
 export function spawnPrestigeConfetti(): void {
   for (let i = 0; i < 80; i++) {
@@ -38,10 +39,13 @@ export function spawnPrestigeConfetti(): void {
 
 // ─── FLASH MILESTONE ─────────────────────────────────────────
 
-export function flashScreen(color: string = 'rgba(0,255,136,0.08)'): void {
+export type FlashTone = 'outremer' | 'ambre';
+
+/** Voile bref sur tout l'écran, teinté d'un jeton de couleur (`strength` en %). */
+export function flashScreen(tone: FlashTone = 'outremer', strength = 8): void {
   const el = document.createElement('div');
   el.style.cssText = `
-    position:fixed;inset:0;background:${color};
+    position:fixed;inset:0;background:color-mix(in srgb, var(--${tone}) ${strength}%, transparent);
     pointer-events:none;z-index:9998;
     animation:screen-flash 0.4s ease forwards;
   `;

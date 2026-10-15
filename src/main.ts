@@ -328,7 +328,7 @@ function gameLoop(timestamp: number): void {
       const label = MILESTONE_LABELS[MILESTONES[milestoneIdx]] ?? t('milestone.generic', { amount: formatCurrency(MILESTONES[milestoneIdx]) });
       notifyMilestone(label);
       playMilestone();
-      flashScreen('rgba(0,255,136,0.07)');
+      flashScreen('outremer', 7);
       milestoneIdx++;
     }
 
@@ -478,7 +478,7 @@ document.getElementById('btn-prestige-confirm')!.addEventListener('click', () =>
   closeModal('prestige-overlay');
   playPrestige();
   spawnPrestigeConfetti();
-  flashScreen('rgba(124,58,237,0.12)');
+  flashScreen('ambre', 12);
   notify(t('prestige.done', { rp: rpGained }), 'purple');
   renderReputation();
 });
@@ -595,9 +595,9 @@ function updateEchoUI(): void {
     echoBarWrap.style.display = '';
     echoBarFill.style.width   = `${((120 - es.cooldownRemaining) / 120) * 100}%`;
     echoTimerLbl.textContent  = `${m}:${String(s).padStart(2,'0')}`;
-    echoBarFill.style.background = 'var(--text-muted)';
+    echoBarFill.classList.add('cooldown');
   } else {
-    echoBarFill.style.background = 'var(--accent-blue)';
+    echoBarFill.classList.remove('cooldown');
     echoBarWrap.style.display    = 'none';
     if (es.clicksRecorded < 3) {
       echoSub.textContent = t('echo.needClicks', { n: 3 - es.clicksRecorded });
@@ -1045,7 +1045,7 @@ function renderAcademy(): void {
     html += `
       <div class="chapter-card${isOpen ? ' open' : ''}" data-chapter="${chapter.id}">
         <div class="chapter-header">
-          <div class="chapter-icon" style="background:${chapter.color}20;color:${chapter.color}">${chapter.icon}</div>
+          <div class="chapter-icon">${chapter.icon}</div>
           <div class="chapter-meta">
             <div class="chapter-title">Chapitre ${chapter.number} — ${chapter.title}</div>
             <div class="chapter-subtitle">${chapter.subtitle}</div>
@@ -1270,7 +1270,7 @@ function showScore(
     renderer.markDirty();
     updateAcademyBadge();
     spawnFloatingNumber(challenge.euroReward, scoreZone);
-    flashScreen('rgba(56,189,248,0.08)');
+    flashScreen('outremer', 8);
     notify(`🎓 Défi complété ! +${formatCurrency(challenge.euroReward)} +${challenge.xpReward} XP`, 'green');
   }
 
