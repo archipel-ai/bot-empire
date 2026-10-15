@@ -403,7 +403,6 @@ document.getElementById('tab-agents')!.addEventListener('click', (e) => {
   state = engine.buyAgents(state, agentId, qty);
   if ((state.agents[agentId]?.count ?? 0) > prev) {
     renderer.markDirty();
-    notify(t('agent.recruited'), 'green');
     playPurchase();
     bureau.celebratePurchase(agentId);
     hints.dismiss('first-agent');
@@ -637,12 +636,20 @@ function triggerGhostClick(): void {
   }, 300);
 }
 
-function notifyMilestone(message: string): void {
+const MAX_NOTIFS = 3; // au-delà, les plus anciennes s'effacent pour ne pas recouvrir la scène
+
+function pushNotif(el: HTMLElement): void {
   const container = document.getElementById('notifications')!;
+  container.appendChild(el);
+  const pile = container.querySelectorAll('.notif:not(.incident-notice)');
+  for (let i = 0; i < pile.length - MAX_NOTIFS; i++) pile[i].remove();
+}
+
+function notifyMilestone(message: string): void {
   const el = document.createElement('div');
   el.className = 'notif milestone';
   el.textContent = message;
-  container.appendChild(el);
+  pushNotif(el);
   setTimeout(() => {
     el.style.animation = 'fadeOut 0.3s ease forwards';
     setTimeout(() => el.remove(), 300);
@@ -650,11 +657,10 @@ function notifyMilestone(message: string): void {
 }
 
 function notify(message: string, color: 'green' | 'purple' | 'orange' = 'green'): void {
-  const container = document.getElementById('notifications')!;
   const el = document.createElement('div');
   el.className = `notif ${color === 'purple' ? 'purple' : color === 'orange' ? 'orange' : ''}`;
   el.textContent = message;
-  container.appendChild(el);
+  pushNotif(el);
   setTimeout(() => {
     el.style.animation = 'fadeOut 0.3s ease forwards';
     setTimeout(() => el.remove(), 300);

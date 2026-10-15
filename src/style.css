@@ -423,6 +423,12 @@ button:focus-visible, label:focus-within, textarea:focus-visible, input:focus-vi
   scrollbar-width: none;
 }
 .tabs::-webkit-scrollbar { display: none; }
+/* 7 onglets ne tiennent pas : seul l'onglet actif montre son nom, les autres gardent icône et compteur */
+.tab { position: relative; }
+.tab:not(.active) .tab-label {
+  position: absolute; width: 1px; height: 1px; overflow: hidden;
+  clip-path: inset(50%); white-space: nowrap;
+}
 .tab {
   background: transparent;
   border: none;

@@ -190,6 +190,7 @@ export class Renderer {
 
   private isAgentRevealed(state: GameState, agentId: string): boolean {
     if ((state.agents[agentId]?.count ?? 0) > 0) return true;
+    if (AGENTS[0]?.id === agentId) return true; // le premier agent montre au joueur quoi viser
     // totalEarned ne fait que monter pendant une partie : un objet dévoilé le reste
     return state.totalEarned >= this.engine.getAgentCost(state, agentId) * REVEAL_SHARE;
   }
