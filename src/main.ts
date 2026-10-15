@@ -535,10 +535,12 @@ document.getElementById('btn-copy-url')!.addEventListener('click', () => {
 
 // ─── HELPERS ─────────────────────────────────────────────────
 
-// Enregistrement SW pour PWA
-if ('serviceWorker' in navigator) {
+// Enregistrement SW pour PWA — uniquement sur GitHub Pages.
+// Ailleurs (itch.io sert le jeu dans une iframe cross-origin, dev local) on s'en passe.
+const PWA_HOST_SUFFIX = '.github.io';
+if ('serviceWorker' in navigator && window.location.hostname.endsWith(PWA_HOST_SUFFIX)) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/bot-empire/sw.js').catch(() => {/* dev mode */});
+    navigator.serviceWorker.register('sw.js').catch(() => {/* SW indisponible : le jeu marche sans */});
   });
 }
 
