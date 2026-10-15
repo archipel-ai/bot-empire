@@ -4,8 +4,8 @@ import { CLIENTS } from '../config/clients.ts';
 import { UPGRADES } from '../config/upgrades.ts';
 import { REPUTATION_PERKS, getPrestigeRP } from '../config/reputationPerks.ts';
 
-const PRESTIGE_BASE           = 750_000;
-const PRESTIGE_SCALE          = 2.0;  // ×2 par prestige
+const PRESTIGE_BASE           = 10_000_000; // atteint juste après le dernier client (~30 min la 1re partie)
+const PRESTIGE_SCALE          = 1.5;  // ×1.5 par prestige : chaque partie reste plus courte que la précédente
 const PRESTIGE_BONUS_PER_LEVEL = 0.15;
 const BASE_CLICK_VALUE         = 1;  // 10 clics pour le premier agent (10 €)
 const MAX_OFFLINE_HOURS        = 8;
@@ -214,8 +214,10 @@ export class GameEngine {
     return Math.min(state.totalEarned / this.getPrestigeThreshold(state), 1);
   }
 
+  /** RP gagnés en vendant maintenant (au minimum ceux du seuil, tant qu'il n'est pas atteint). */
   getPrestigeRP(state: GameState): number {
-    return getPrestigeRP(state.prestigeCount);
+    const runEarned = Math.max(state.totalEarned, this.getPrestigeThreshold(state));
+    return getPrestigeRP(runEarned, PRESTIGE_BASE);
   }
 
   prestige(state: GameState): GameState {

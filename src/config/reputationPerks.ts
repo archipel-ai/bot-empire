@@ -84,7 +84,15 @@ export const REPUTATION_PERKS: ReputationPerk[] = [
   },
 ];
 
-/** RP gagnés au prochain prestige (avant de prestige) */
-export function getPrestigeRP(_prestigeCount: number): number {
-  return 3; // flat — simple et prévisible
+/** RP obtenus quand les gains de la partie égalent l'objectif du premier prestige */
+const RP_AT_FIRST_PRESTIGE = 3;
+
+/**
+ * RP gagnés au prestige, proportionnels à la racine carrée des gains de la partie.
+ * Normalisé : `referenceEarned` (objectif du 1er prestige) rapporte 3 RP ;
+ * gagner 4× plus en rapporte 2× plus.
+ */
+export function getPrestigeRP(runEarned: number, referenceEarned: number): number {
+  if (runEarned <= 0 || referenceEarned <= 0) return 0;
+  return Math.floor(RP_AT_FIRST_PRESTIGE * Math.sqrt(runEarned / referenceEarned));
 }
