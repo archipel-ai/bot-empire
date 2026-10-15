@@ -106,6 +106,13 @@ button:focus-visible, label:focus-within, textarea:focus-visible, input:focus-vi
 .num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
 .hidden { display: none !important; }
 
+/* Pictogrammes SVG en trait (src/ui/icons.ts) : taille = taille de police du parent */
+.ico { width: 1em; height: 1em; flex-shrink: 0; display: inline-block; vertical-align: -0.14em; }
+[data-icon] { display: inline-flex; align-items: center; justify-content: center; }
+.contract-timer .ico, .client-badge .ico, .rep-perk-cost .ico { font-size: 1.1em; }
+.score-title, .academy-intro-title, .gpturbo-context-title { display: flex; align-items: center; gap: 8px; }
+.btn-gpturbo-send { display: inline-flex; align-items: center; gap: 6px; }
+
 /* ===== EN-TÊTE ===== */
 #header {
   height: var(--header-h);

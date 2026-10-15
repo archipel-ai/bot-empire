@@ -18,7 +18,7 @@ export interface IncidentQuestion {
 export const INCIDENTS: IncidentQuestion[] = [
   {
     client: 'MégaRetail',
-    urgency: '🔴 CRITIQUE',
+    urgency: 'CRITIQUE',
     problem: 'Le chatbot répond avec des infos de 2022 et invente des promos inexistantes.',
     question: 'Quelle est la meilleure solution à court terme ?',
     answers: [
@@ -32,7 +32,7 @@ export const INCIDENTS: IncidentQuestion[] = [
   },
   {
     client: 'PharmaPlus',
-    urgency: '🔴 URGENT',
+    urgency: 'URGENT',
     problem: 'L\'agent invente des posologies de médicaments — données potentiellement dangereuses.',
     question: 'Comment sécuriser le système en priorité ?',
     answers: [
@@ -46,7 +46,7 @@ export const INCIDENTS: IncidentQuestion[] = [
   },
   {
     client: 'SpeedLogistix',
-    urgency: '🟠 IMPORTANT',
+    urgency: 'IMPORTANT',
     problem: 'Les appels API coûtent 3× le budget prévu. Le client menace de résilier.',
     question: 'Quelle est la cause la plus probable ?',
     answers: [
@@ -60,7 +60,7 @@ export const INCIDENTS: IncidentQuestion[] = [
   },
   {
     client: 'LexGroup',
-    urgency: '🔴 CRITIQUE',
+    urgency: 'CRITIQUE',
     problem: 'Un utilisateur a réussi à faire ignorer les instructions du système au chatbot juridique.',
     question: 'Ce type d\'attaque s\'appelle ?',
     answers: [
@@ -74,7 +74,7 @@ export const INCIDENTS: IncidentQuestion[] = [
   },
   {
     client: 'FluentAI',
-    urgency: '🟠 IMPORTANT',
+    urgency: 'IMPORTANT',
     problem: 'Les traductions automatiques sont inconsistantes — même texte, résultats différents à chaque session.',
     question: 'Quel paramètre est probablement mal configuré ?',
     answers: [
@@ -88,7 +88,7 @@ export const INCIDENTS: IncidentQuestion[] = [
   },
   {
     client: 'DataNova',
-    urgency: '🟡 MOYEN',
+    urgency: 'MOYEN',
     problem: 'L\'agent dépasse systématiquement la fenêtre de contexte quand les rapports sont longs.',
     question: 'Quelle technique résout ce problème sans changer de modèle ?',
     answers: [
@@ -102,7 +102,7 @@ export const INCIDENTS: IncidentQuestion[] = [
   },
   {
     client: 'ViralBoost',
-    urgency: '🟠 IMPORTANT',
+    urgency: 'IMPORTANT',
     problem: 'L\'agent de génération de contenu tourne en boucle infinie sans jamais livrer de résultat.',
     question: 'Qu\'est-ce qui manque dans l\'architecture de l\'agent ?',
     answers: [
@@ -116,7 +116,7 @@ export const INCIDENTS: IncidentQuestion[] = [
   },
   {
     client: 'GreenBank',
-    urgency: '🔴 CRITIQUE',
+    urgency: 'CRITIQUE',
     problem: 'Des données clients PII sont envoyées à l\'API OpenAI. Le DPO est en train d\'appeler les avocats.',
     question: 'Solution RGPD-compatible en urgence ?',
     answers: [
@@ -130,7 +130,7 @@ export const INCIDENTS: IncidentQuestion[] = [
   },
   {
     client: 'QuickSort',
-    urgency: '🟡 MOYEN',
+    urgency: 'MOYEN',
     problem: 'Le classifieur de tickets support a 65% de précision. Le client attendait 90%+.',
     question: 'Comment améliorer rapidement les performances sans réentraîner ?',
     answers: [
@@ -144,7 +144,7 @@ export const INCIDENTS: IncidentQuestion[] = [
   },
   {
     client: 'PrimeCare',
-    urgency: '🟠 IMPORTANT',
+    urgency: 'IMPORTANT',
     problem: 'Le modèle prend 8+ secondes pour répondre. Les utilisateurs abandonnent avant la fin.',
     question: 'Quelle technique améliore la perception de vitesse sans changer de modèle ?',
     answers: [
@@ -158,7 +158,7 @@ export const INCIDENTS: IncidentQuestion[] = [
   },
   {
     client: 'AutoFleet',
-    urgency: '🟡 MOYEN',
+    urgency: 'MOYEN',
     problem: 'Le workflow d\'automatisation plante sans se relancer en cas d\'erreur API intermittente.',
     question: 'Quelle stratégie de résilience implémenter ?',
     answers: [
@@ -172,7 +172,7 @@ export const INCIDENTS: IncidentQuestion[] = [
   },
   {
     client: 'MindScope',
-    urgency: '🔴 CRITIQUE',
+    urgency: 'CRITIQUE',
     problem: 'L\'agent d\'analyse confond deux pathologies similaires dans 35% des cas.',
     question: 'Quel est le premier levier d\'amélioration à tester ?',
     answers: [

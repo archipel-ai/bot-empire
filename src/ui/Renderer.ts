@@ -5,6 +5,7 @@ import { CLIENTS } from '../config/clients.ts';
 import { UPGRADES } from '../config/upgrades.ts';
 import { formatCurrency, formatRate } from '../utils/format.ts';
 import { t } from '../i18n/i18n.ts';
+import { icon, AGENT_ICONS, CLIENT_ICONS, upgradeIcon } from './icons.ts';
 
 const COUNTER_RATE = 9; // 1/s : vitesse de rattrapage des compteurs
 const REVEAL_SHARE = 0.25; // un objet bloqué se dévoile à 25 % de son prix
@@ -273,7 +274,7 @@ export class Renderer {
 
       return `
         <div class="agent-card ${btn.canBuy ? 'affordable' : ''}" data-agent="${def.id}">
-          <div class="agent-icon">${def.icon}</div>
+          <div class="agent-icon">${icon(AGENT_ICONS[def.id] ?? 'agents')}</div>
           <div class="agent-info">
             <div class="agent-name">${def.name}</div>
             <div class="agent-desc">${def.description}</div>
@@ -336,14 +337,14 @@ export class Renderer {
               <div class="client-name">???</div>
               <div class="client-unlock">${t('client.unlockAt', { rate: formatRate(def.unlockRateRequired) })}</div>
             </div>
-            <span class="client-badge locked">${t('client.locked')}</span>
+            <span class="client-badge locked">${icon('lock')}${t('client.locked')}</span>
           </div>
         `;
       }
 
       return `
         <div class="client-card ${unlocked ? 'active-contract' : 'locked'}">
-          <div class="client-icon">${def.icon}</div>
+          <div class="client-icon">${icon(CLIENT_ICONS[def.id] ?? 'handshake')}</div>
           <div class="client-info">
             <div class="client-name">${def.name}</div>
             <div class="client-sector">${def.sector}</div>
@@ -351,7 +352,7 @@ export class Renderer {
             ${!unlocked ? `<div class="client-unlock">${t('client.unlockAt', { rate: formatRate(def.unlockRateRequired) })}${remaining > 0 ? t('client.missing', { rate: formatRate(remaining) }) : ''}</div>` : ''}
           </div>
           <span class="client-badge ${unlocked ? 'active' : 'locked'}">
-            ${unlocked ? t('client.active') : t('client.locked')}
+            ${unlocked ? `${icon('check')}${t('client.active')}` : `${icon('lock')}${t('client.locked')}`}
           </span>
         </div>
       `;
@@ -387,7 +388,7 @@ export class Renderer {
 
       return `
         <div class="upgrade-card ${purchased ? 'purchased' : canBuy ? 'affordable' : ''}">
-          <div class="upgrade-icon">${def.icon}</div>
+          <div class="upgrade-icon">${icon(upgradeIcon(def.effect.type, def.effect.type === 'agent_multiplier' ? def.effect.agentId : undefined))}</div>
           <div class="upgrade-info">
             <div class="upgrade-name">${def.name}</div>
             <div class="upgrade-desc">${def.description}</div>

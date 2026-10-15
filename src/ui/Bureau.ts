@@ -3,6 +3,7 @@ import { AGENTS } from '../config/agents.ts';
 import { CLIENTS } from '../config/clients.ts';
 import { t } from '../i18n/i18n.ts';
 import { PHONE_QUERY } from './Drawer.ts';
+import { icon, type IconName } from './icons.ts';
 
 /**
  * Bureau — la scène principale, dessinée dans un seul canvas.
@@ -19,16 +20,16 @@ export interface BureauStage {
   id:       string;
   label:    string;
   sublabel: string;
-  icon:     string;
+  icon:     IconName;
 }
 
 export const STAGES: Array<{ minAgents: number; minPrestige: number } & BureauStage> = [
-  { id: 'chambre',     minAgents: 0,   minPrestige: 0, icon: '🛋️', label: 'Chambre d\'ado',   sublabel: 'Le voyage commence ici' },
-  { id: 'home-office', minAgents: 1,   minPrestige: 0, icon: '🖥️', label: 'Home Office',      sublabel: 'Les premiers projets arrivent' },
-  { id: 'coworking',   minAgents: 10,  minPrestige: 0, icon: '☕', label: 'Espace Coworking', sublabel: 'L\'équipe prend forme' },
-  { id: 'startup',     minAgents: 25,  minPrestige: 0, icon: '🚀', label: 'Locaux Startup',   sublabel: 'On scale !' },
-  { id: 'scale-up',    minAgents: 60,  minPrestige: 0, icon: '🏢', label: 'Scale-up',         sublabel: 'L\'empire se construit' },
-  { id: 'unicorn',     minAgents: 120, minPrestige: 0, icon: '🦄', label: 'Siège Social',     sublabel: 'Niveau licorne !' },
+  { id: 'chambre',     minAgents: 0,   minPrestige: 0, icon: 'sofa',    label: 'Chambre d\'ado',   sublabel: 'Le voyage commence ici' },
+  { id: 'home-office', minAgents: 1,   minPrestige: 0, icon: 'monitor', label: 'Home Office',      sublabel: 'Les premiers projets arrivent' },
+  { id: 'coworking',   minAgents: 10,  minPrestige: 0, icon: 'cup',     label: 'Espace Coworking', sublabel: 'L\'équipe prend forme' },
+  { id: 'startup',     minAgents: 25,  minPrestige: 0, icon: 'rocket',  label: 'Locaux Startup',   sublabel: 'On scale !' },
+  { id: 'scale-up',    minAgents: 60,  minPrestige: 0, icon: 'building', label: 'Scale-up',         sublabel: 'L\'empire se construit' },
+  { id: 'unicorn',     minAgents: 120, minPrestige: 0, icon: 'crown',   label: 'Siège Social',     sublabel: 'Niveau licorne !' },
 ];
 
 function getStageIndex(totalAgents: number, prestigeCount: number): number {
@@ -333,7 +334,7 @@ export class Bureau {
     this.bureauEl.classList.add(`stage-${stage.id}`);
     this.currentStageId = stage.id;
 
-    this.stageBadge.innerHTML = `<span class="stage-icon">${stage.icon}</span><span class="stage-label"></span><span class="stage-sublabel"></span>`;
+    this.stageBadge.innerHTML = `<span class="stage-icon">${icon(stage.icon)}</span><span class="stage-label"></span><span class="stage-sublabel"></span>`;
     this.stageBadge.querySelector('.stage-label')!.textContent = stage.label;
     this.stageBadge.querySelector('.stage-sublabel')!.textContent = stage.sublabel;
 

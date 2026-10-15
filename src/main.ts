@@ -28,11 +28,13 @@ import { formatRate } from './utils/format.ts';
 import { AGENTS } from './config/agents.ts';
 import { LANG, setLang, t, translateStaticDom } from './i18n/i18n.ts';
 import { applyContentLanguage } from './i18n/content.ts';
+import { icon, hydrateIcons, PERK_ICONS } from './ui/icons.ts';
 
 // ─── LANGUE ──────────────────────────────────────────────────
 // Avant toute création de système : les configs sont traduites en place.
 applyContentLanguage();
 translateStaticDom();
+hydrateIcons();
 
 // L'Academy note les prompts avec des expressions régulières en français : masquée en anglais
 if (LANG === 'en') {
@@ -75,13 +77,13 @@ market.setCallbacks(
     const mult   = ev.event.effect.multiplier;
     const isBoost = mult >= 1;
     const label  = marketEffectLabel(ev.event.effect.type, mult);
-    marketBannerIcon.textContent = ev.event.icon;
+    marketBannerIcon.innerHTML = icon(isBoost ? 'trendUp' : 'trendDown');
     marketBannerName.textContent = ev.event.name;
     marketBannerDesc.textContent = ev.event.description;
     marketBannerEff.textContent  = label;
     marketBannerEff.className    = `market-banner-effect${isBoost ? '' : ' malus'}`;
     marketBanner.classList.remove('hidden');
-    notifyMilestone(`${ev.event.icon} ${ev.event.name} — ${ev.event.description}`);
+    notifyMilestone(`${ev.event.name} — ${ev.event.description}`);
     playMilestone();
   },
   (ev) => {
@@ -139,7 +141,7 @@ applyReputationEffects();
     const mult    = ev.event.effect.multiplier;
     const isBoost = mult >= 1;
     const label   = marketEffectLabel(ev.event.effect.type, mult);
-    marketBannerIcon.textContent = ev.event.icon;
+    marketBannerIcon.innerHTML = icon(isBoost ? 'trendUp' : 'trendDown');
     marketBannerName.textContent = ev.event.name;
     marketBannerDesc.textContent = ev.event.description;
     marketBannerEff.textContent  = label;
@@ -746,12 +748,14 @@ function resolveIncident(chosen: number): void {
   // Résultat
   if (isRight) {
     state = { ...state, currency: state.currency + q.reward, totalEarned: state.totalEarned + q.reward };
-    incidentResultIcon.textContent = '✅';
+    incidentResultIcon.innerHTML = icon('check');
+    incidentResultIcon.className = 'incident-result-icon ok';
     incidentLesson.textContent     = t('incident.won', { reward: formatCurrency(q.reward), lesson: q.lesson });
     notify(t('incident.solved', { reward: formatCurrency(q.reward) }), 'green');
     playPurchase();
   } else {
-    incidentResultIcon.textContent = '❌';
+    incidentResultIcon.innerHTML = icon('cross');
+    incidentResultIcon.className = 'incident-result-icon ko';
     incidentLesson.textContent     = q.lesson;
     notify(t('incident.wrong'), 'orange');
   }
@@ -846,7 +850,7 @@ function renderContractSlot(slot: ActiveContract | null, i: number): string {
     return `
       <div class="contract-card rarity-${slot.rarity}">
         <div class="contract-top">
-          <div class="contract-icon">${slot.clientIcon}</div>
+          <div class="contract-icon">${icon('document')}</div>
           <div class="contract-meta">
             <div class="contract-client">
               ${slot.client}
@@ -862,7 +866,7 @@ function renderContractSlot(slot: ActiveContract | null, i: number): string {
         </div>
         <div class="contract-bottom">
           <span class="contract-reward">+${formatCurrency(slot.reward)}</span>
-          <span class="contract-timer ${timeLeft.urgent ? 'urgent' : ''}">⏱ ${timeLeft.label}</span>
+          <span class="contract-timer ${timeLeft.urgent ? 'urgent' : ''}">${icon('clock')}${timeLeft.label}</span>
           <button class="btn-contract" data-accept="${slot.id}" ${canAccept ? '' : 'disabled'}>
             ${canAccept ? t('contract.accept') : t('contract.required')}
           </button>
@@ -876,7 +880,7 @@ function renderContractSlot(slot: ActiveContract | null, i: number): string {
     return `
       <div class="contract-card rarity-${slot.rarity} status-accepted" data-contract-id="${slot.id}">
         <div class="contract-top">
-          <div class="contract-icon">${slot.clientIcon}</div>
+          <div class="contract-icon">${icon('document')}</div>
           <div class="contract-meta">
             <div class="contract-client">${slot.client} <span class="contract-rarity-badge">${rarityLabel}</span></div>
             <div class="contract-title">${slot.title}</div>
@@ -886,7 +890,7 @@ function renderContractSlot(slot: ActiveContract | null, i: number): string {
           <div class="contract-progress-track">
             <div class="contract-progress-fill" style="width:${Math.round(progress * 100)}%" data-progress-id="${slot.id}"></div>
           </div>
-          <span class="contract-timer">⏱ ${timeLeft.label}</span>
+          <span class="contract-timer">${icon('clock')}<span class="contract-timer-text">${timeLeft.label}</span></span>
         </div>
         <div class="contract-bottom">
           <span class="contract-reward">+${formatCurrency(slot.reward)}</span>
@@ -918,7 +922,7 @@ function renderReputation(): void {
   if (rp === 0 && Object.values(state.reputationPurchased ?? {}).every(v => !v)) {
     tabReputation.innerHTML = `
       <div class="rep-intro">
-        <span class="rep-intro-icon">⭐</span>
+        <span class="rep-intro-icon">${icon('star')}</span>
         <div class="rep-intro-title">${t('rep.introTitle')}</div>
         <p class="rep-intro-text">
           ${t('rep.introText')}
@@ -938,7 +942,7 @@ function renderReputation(): void {
     return `
       <div class="${classes}">
         <div class="rep-perk-top">
-          <span class="rep-perk-icon">${perk.icon}</span>
+          <span class="rep-perk-icon">${icon(PERK_ICONS[perk.id] ?? 'star')}</span>
           <div class="rep-perk-meta">
             <div class="rep-perk-name">${perk.name}</div>
             <div class="rep-perk-desc">${perk.description}</div>
@@ -948,7 +952,7 @@ function renderReputation(): void {
           ${owned
             ? `<span class="rep-perk-cost owned-label">${t('rep.enabled')}</span>
                <button class="btn-rep-buy owned" disabled>${t('rep.owned')}</button>`
-            : `<span class="rep-perk-cost">⭐ ${perk.cost}</span>
+            : `<span class="rep-perk-cost">${icon('star')}${perk.cost}</span>
                <button class="btn-rep-buy" data-buy-rep="${perk.id}" ${canBuy ? '' : 'disabled'}>
                  ${canBuy ? t('rep.buy') : t('rep.missing', { n: perk.cost - rp })}
                </button>`
@@ -961,11 +965,11 @@ function renderReputation(): void {
   tabReputation.innerHTML = `
     <div class="reputation-header">
       <div class="reputation-balance">
-        <span class="rep-value">⭐ ${rp}</span>
+        <span class="rep-value">${icon('star')}${rp}</span>
         <span class="rep-label">${t('rep.points')}</span>
       </div>
       <div class="reputation-next">
-        ${t('rep.next')}<br><strong>+${nextRP} ⭐</strong>
+        ${t('rep.next')}<br><strong>+${nextRP} pts</strong>
       </div>
     </div>
     <div class="rep-perk-grid">${perksHtml}</div>
@@ -979,7 +983,7 @@ function renderReputation(): void {
       state = engine.buyRepPerk(state, perkId);
       if (!prev && engine.hasRepPerk(state, perkId)) {
         const perk = REPUTATION_PERKS.find(p => p.id === perkId)!;
-        notify(t('rep.activated', { icon: perk.icon, name: perk.name }), 'purple');
+        notify(t('rep.activated', { name: perk.name }), 'purple');
         playPurchase();
         applyReputationEffects();
         saveSystem.save(state);
@@ -1026,7 +1030,7 @@ function renderAcademy(): void {
 
   let html = `
     <div class="academy-intro">
-      <div class="academy-intro-title">🎓 IA ACADEMY</div>
+      <div class="academy-intro-title">${icon('cap')}IA ACADEMY</div>
       <div class="academy-intro-sub">Deviens expert IA sans quitter le jeu</div>
     </div>
     <div class="academy-xp-bar-wrap">
@@ -1046,13 +1050,13 @@ function renderAcademy(): void {
     html += `
       <div class="chapter-card${isOpen ? ' open' : ''}" data-chapter="${chapter.id}">
         <div class="chapter-header">
-          <div class="chapter-icon">${chapter.icon}</div>
+          <div class="chapter-icon">${icon('book')}</div>
           <div class="chapter-meta">
             <div class="chapter-title">Chapitre ${chapter.number} — ${chapter.title}</div>
             <div class="chapter-subtitle">${chapter.subtitle}</div>
           </div>
           <span class="chapter-progress">${done}/${challenges.length}</span>
-          <span class="chapter-chevron">▾</span>
+          <span class="chapter-chevron">${icon('chevron')}</span>
         </div>
         <div class="chapter-challenges">
           ${challenges.map(c => renderChallengeItem(c)).join('')}
@@ -1085,11 +1089,11 @@ function renderChallengeItem(challenge: AcademyChallenge): string {
   const done      = academy.isCompleted(challenge.id);
   const unlocked  = academy.isUnlocked(challenge);
   const classes   = ['challenge-item', done ? 'completed' : '', !unlocked ? 'locked' : ''].filter(Boolean).join(' ');
-  const icon      = done ? '✓' : !unlocked ? '🔒' : '▶';
+  const statusIcon = icon(done ? 'check' : !unlocked ? 'lock' : 'play');
 
   return `
     <div class="${classes}" data-challenge="${challenge.id}">
-      <div class="challenge-status">${icon}</div>
+      <div class="challenge-status">${statusIcon}</div>
       <div class="challenge-info">
         <div class="challenge-name">${challenge.title}</div>
         <div class="challenge-sub">${challenge.subtitle}</div>
@@ -1104,10 +1108,10 @@ function renderChallengeView(challenge: AcademyChallenge): void {
 
   tabAcademy.innerHTML = `
     <div class="gpturbo-view">
-      <button class="gpturbo-back" id="academy-back">← Retour à l'Academy</button>
+      <button class="gpturbo-back" id="academy-back" type="button">${icon('back')}Retour à l'Academy</button>
 
       <div class="gpturbo-context">
-        <div class="gpturbo-context-title">📋 Ta mission</div>
+        <div class="gpturbo-context-title">${icon('document')}Ta mission</div>
         <div class="gpturbo-context-body">${challenge.context}</div>
         <div class="gpturbo-tips">
           ${challenge.tips.map(t => `<span class="gpturbo-tip">${t}</span>`).join('')}
@@ -1116,7 +1120,7 @@ function renderChallengeView(challenge: AcademyChallenge): void {
 
       <div class="gpturbo-chat" id="gpturbo-chat">
         <div class="gpturbo-chat-header">
-          <div class="gpturbo-avatar">⚡</div>
+          <div class="gpturbo-avatar">${icon('bolt')}</div>
           <div>
             <div class="gpturbo-name">GPTurbo</div>
             <div class="gpturbo-status">En ligne</div>
@@ -1134,7 +1138,7 @@ function renderChallengeView(challenge: AcademyChallenge): void {
             ${alreadyDone ? 'disabled' : ''}
           ></textarea>
           <button class="btn-gpturbo-send" id="gpturbo-send" ${alreadyDone ? 'disabled' : ''}>
-            Envoyer ⚡
+            Envoyer ${icon('send')}
           </button>
         </div>
       </div>
@@ -1150,7 +1154,7 @@ function renderChallengeView(challenge: AcademyChallenge): void {
 
   if (alreadyDone) {
     const scoreZone = document.getElementById('gpturbo-score-zone')!;
-    scoreZone.innerHTML = `<div class="gpturbo-score"><div class="score-title">✅ Défi complété !</div><p style="font-size:12px;color:var(--text-secondary);margin-top:8px">${challenge.lesson}</p></div>`;
+    scoreZone.innerHTML = `<div class="gpturbo-score"><div class="score-title">${icon('check')}Défi complété !</div><p class="score-lesson">${challenge.lesson}</p></div>`;
     return;
   }
 
@@ -1214,7 +1218,7 @@ function showScore(
 ): void {
   const scoreZone = document.getElementById('gpturbo-score-zone')!;
   const pct       = result.maxScore > 0 ? Math.round((result.score / result.maxScore) * 100) : 100;
-  const tierLabel = result.tier === 'excellent' ? '🌟 Excellent !' : result.tier === 'good' ? '✅ Bien joué' : result.tier === 'decent' ? '👍 Pas mal' : '💡 À améliorer';
+  const tierLabel = result.tier === 'excellent' ? 'Excellent !' : result.tier === 'good' ? 'Bien joué' : result.tier === 'decent' ? 'Pas mal' : 'À améliorer';
 
   // Critères (pas pour "discovery")
   const criteriaHtml = challenge.type === 'discovery' ? '' : `
@@ -1244,7 +1248,7 @@ function showScore(
     <div class="gpturbo-score">
       <div class="score-header">
         <span class="score-title">${tierLabel}</span>
-        <span class="score-value ${result.tier}">${challenge.type === 'discovery' ? '🎉' : `${pct}/100`}</span>
+        <span class="score-value ${result.tier}">${challenge.type === 'discovery' ? icon('star') : `${pct}/100`}</span>
       </div>
       ${criteriaHtml}
       <div class="score-lesson">${lessonHtml}</div>
@@ -1272,7 +1276,7 @@ function showScore(
     updateAcademyBadge();
     spawnFloatingNumber(challenge.euroReward, scoreZone);
     flashScreen('outremer', 8);
-    notify(`🎓 Défi complété ! +${formatCurrency(challenge.euroReward)} +${challenge.xpReward} XP`, 'green');
+    notify(`Défi complété ! +${formatCurrency(challenge.euroReward)} +${challenge.xpReward} XP`, 'green');
   }
 
   document.getElementById('btn-next-challenge')!.addEventListener('click', () => {
@@ -1294,7 +1298,8 @@ function updateContractProgressBars(): void {
     const timer = tabContracts.querySelector(`[data-contract-id="${slot.id}"] .contract-timer`) as HTMLElement | null;
     if (timer) {
       const tl = formatTimeLeft((slot.completesAt ?? 0) - Date.now());
-      timer.textContent = `⏱ ${tl.label}`;
+      const text = timer.querySelector('.contract-timer-text');
+      if (text) text.textContent = tl.label;
       timer.className = `contract-timer${tl.urgent ? ' urgent' : ''}`;
     }
   }

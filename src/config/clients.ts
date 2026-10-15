@@ -14,11 +14,11 @@ export const CLIENTS: ClientDef[] = [
   {
     id: 'restaurant-local',
     name: 'Le Comptoir',
-    sector: 'Restauration 🍺',
+    sector: 'Restauration',
     icon: '🍽️',
     bonusPerSecond: 1.5,          // était 0.5
     unlockRateRequired: 1,
-    unlockDialogue: '☕ Le Comptoir signe ! "Un chatbot pour prendre les réservations du midi, c\'est possible ?"',
+    unlockDialogue: 'Le Comptoir signe ! "Un chatbot pour prendre les réservations du midi, c\'est possible ?"',
   },
   {
     id: 'cabinet-medical',
@@ -27,7 +27,7 @@ export const CLIENTS: ClientDef[] = [
     icon: '🏥',
     bonusPerSecond: 8,            // était 2
     unlockRateRequired: 12,
-    unlockDialogue: '💊 MédiaTech+ à bord ! "L\'IA doit rester RGPD-compliant." On gère.',
+    unlockDialogue: 'MédiaTech+ à bord ! "L\'IA doit rester RGPD-compliant." On gère.',
   },
   {
     id: 'pme-ecommerce',
@@ -36,7 +36,7 @@ export const CLIENTS: ClientDef[] = [
     icon: '🛍️',
     bonusPerSecond: 30,           // était 8
     unlockRateRequired: 100,
-    unlockDialogue: '🛒 BricoMax signe ! "Nos concurrents ont déjà l\'IA. Rattrapez-nous."',
+    unlockDialogue: 'BricoMax signe ! "Nos concurrents ont déjà l\'IA. Rattrapez-nous."',
   },
   {
     id: 'groupe-hotelier',
@@ -45,7 +45,7 @@ export const CLIENTS: ClientDef[] = [
     icon: '🏨',
     bonusPerSecond: 100,          // était 30
     unlockRateRequired: 600,
-    unlockDialogue: '🌴 PalmHôtel Group confirme ! "Automatisation totale du concierge virtuel."',
+    unlockDialogue: 'PalmHôtel Group confirme ! "Automatisation totale du concierge virtuel."',
   },
   {
     id: 'grand-compte',
@@ -54,7 +54,7 @@ export const CLIENTS: ClientDef[] = [
     icon: '🏢',
     bonusPerSecond: 400,          // était 120
     unlockRateRequired: 3_000,
-    unlockDialogue: '🔥 GigaSoft Corp. entre dans l\'empire ! Budget illimité. Exécution parfaite attendue.',
+    unlockDialogue: 'GigaSoft Corp. entre dans l\'empire ! Budget illimité. Exécution parfaite attendue.',
   },
   {
     id: 'gouvernement',
@@ -63,6 +63,6 @@ export const CLIENTS: ClientDef[] = [
     icon: '🏛️',
     bonusPerSecond: 2_000,        // était 500
     unlockRateRequired: 15_000,
-    unlockDialogue: '🏛️ MinisteIA valide le marché ! L\'État fait confiance à ton agence. Historique.',
+    unlockDialogue: 'MinisteIA valide le marché ! L\'État fait confiance à ton agence. Historique.',
   },
 ];
