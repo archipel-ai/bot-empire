@@ -165,7 +165,7 @@ export class Renderer {
   // ─── CLIENTS ───────────────────────────────────────────────
 
   private renderClients(state: GameState): void {
-    const rate = this.engine.getTotalRate(state);
+    const rate = this.engine.getAgentRate(state); // le déblocage ne compte pas les bonus clients
     this.elTabClients.innerHTML = CLIENTS.map(def => {
       const unlocked = state.clientsUnlocked[def.id];
       const remaining = def.unlockRateRequired - rate;
@@ -177,7 +177,7 @@ export class Renderer {
             <div class="client-name">${def.name}</div>
             <div class="client-sector">${def.sector}</div>
             <div class="client-revenue">+${formatRate(def.bonusPerSecond)} bonus</div>
-            ${!unlocked ? `<div class="client-unlock">Déblocage à ${formatRate(def.unlockRateRequired)}${remaining > 0 ? ` — manque ${formatRate(remaining)}` : ''}</div>` : ''}
+            ${!unlocked ? `<div class="client-unlock">Déblocage à ${formatRate(def.unlockRateRequired)} d'agents${remaining > 0 ? ` — manque ${formatRate(remaining)}` : ''}</div>` : ''}
           </div>
           <span class="client-badge ${unlocked ? 'active' : 'locked'}">
             ${unlocked ? 'Actif' : '🔒'}

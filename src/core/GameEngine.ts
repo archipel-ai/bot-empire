@@ -56,10 +56,26 @@ export class GameEngine {
       (acc, def) => acc + this.getAgentProduction(state, def), 0
     );
     const clientBonus   = this.getClientBonus(state);
-    const globalMult    = this.getGlobalUpgradeMultiplier(state);
-    const prestigeMult  = this.getPrestigeMultiplier(state);
-    const repMult       = this.getReputationIncomeMult(state);
-    return (agentProd + clientBonus) * globalMult * prestigeMult * repMult * marketMult;
+    return (agentProd + clientBonus) * this.getIncomeMultiplier(state) * marketMult;
+  }
+
+  /**
+   * Production des agents seuls (hors bonus clients et hors événement de marché).
+   * Sert au déblocage des clients : inclure leurs bonus créait une cascade
+   * où chaque client débloquait immédiatement le suivant.
+   */
+  getAgentRate(state: GameState): number {
+    const agentProd = AGENTS.reduce(
+      (acc, def) => acc + this.getAgentProduction(state, def), 0
+    );
+    return agentProd * this.getIncomeMultiplier(state);
+  }
+
+  /** Multiplicateurs permanents de revenu : upgrades globaux × prestige × réputation. */
+  private getIncomeMultiplier(state: GameState): number {
+    return this.getGlobalUpgradeMultiplier(state)
+      * this.getPrestigeMultiplier(state)
+      * this.getReputationIncomeMult(state);
   }
 
   // ─── CLIC ──────────────────────────────────────────────────
@@ -143,10 +159,11 @@ export class GameEngine {
     const earned = rate * deltaSeconds;
     const prevClientStates = { ...state.clientsUnlocked };
 
-    // Unlock clients automatically
+    // Unlock clients automatically — sur la production des agents seuls
+    const agentRate = this.getAgentRate(state);
     const newClientStates = { ...state.clientsUnlocked };
     CLIENTS.forEach(c => {
-      if (!newClientStates[c.id] && rate >= c.unlockRateRequired) {
+      if (!newClientStates[c.id] && agentRate >= c.unlockRateRequired) {
         newClientStates[c.id] = true;
       }
     });
