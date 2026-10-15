@@ -10,7 +10,7 @@ import { type GameState } from './core/GameState.ts';
 import { Renderer, type BuyMode } from './ui/Renderer.ts';
 import { Bureau } from './ui/Bureau.ts';
 import { formatCurrency, formatDuration } from './utils/format.ts';
-import { playClick, playPurchase, playClientUnlock, playMilestone, playPrestige } from './utils/audio.ts';
+import { playClick, playPurchase, playClientUnlock, playMilestone, playPrestige, isSoundOn, setSoundOn } from './utils/audio.ts';
 import { EchoSystem } from './systems/EchoSystem.ts';
 import { IncidentSystem, type IncidentQuestion } from './systems/IncidentSystem.ts';
 import { Hints } from './ui/Hints.ts';
@@ -520,6 +520,22 @@ document.getElementById('btn-lang')!.addEventListener('click', () => {
   setLang(LANG === 'fr' ? 'en' : 'fr');
   window.location.reload();
 });
+
+// ─── SON ─────────────────────────────────────────────────────
+
+const btnSound = document.getElementById('btn-sound') as HTMLButtonElement;
+function renderSoundButton(): void {
+  const on = isSoundOn();
+  btnSound.innerHTML = icon(on ? 'soundOn' : 'soundOff');
+  btnSound.setAttribute('aria-pressed', String(on));
+  btnSound.setAttribute('aria-label', t(on ? 'sound.mute' : 'sound.unmute'));
+  btnSound.title = t(on ? 'sound.mute' : 'sound.unmute');
+}
+btnSound.addEventListener('click', () => {
+  setSoundOn(!isSoundOn());
+  renderSoundButton();
+});
+renderSoundButton();
 
 // ─── SAVE ACTIONS ────────────────────────────────────────────
 

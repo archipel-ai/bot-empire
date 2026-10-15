@@ -194,6 +194,8 @@ button:focus-visible, label:focus-within, textarea:focus-visible, input:focus-vi
   transition: border-color .2s, color .2s, background .2s;
 }
 .btn-icon:hover { border-color: var(--outremer); color: var(--outremer); }
+.btn-sound { font-size: 18px; padding: 4px 8px; }
+.btn-sound[aria-pressed="false"] { color: var(--brume); }
 .btn-lang {
   flex-shrink: 0;
   min-width: 40px;

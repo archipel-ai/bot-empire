@@ -10,6 +10,8 @@ const fr = {
   // Langue
   'lang.switch':      'EN',
   'lang.switchAria':  'Switch to English',
+  'sound.mute':       'Couper le son',
+  'sound.unmute':     'Activer le son',
 
   // En-tête
   'header.treasury':  'TRÉSORERIE',
@@ -203,6 +205,8 @@ const en: Record<UiKey, string> = {
 
   'lang.switch':      'FR',
   'lang.switchAria':  'Passer en français',
+  'sound.mute':       'Mute sound',
+  'sound.unmute':     'Turn sound on',
 
   'header.treasury':  'CASH',
   'header.rate':      'INCOME',
