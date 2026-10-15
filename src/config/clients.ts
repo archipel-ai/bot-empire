@@ -11,12 +11,12 @@ export interface ClientDef {
 export const CLIENTS: ClientDef[] = [
   {
     id: 'restaurant-local',
-    name: 'La Taverne',
+    name: 'Le Comptoir',
     sector: 'Restauration 🍺',
     icon: '🍽️',
     bonusPerSecond: 1.5,          // était 0.5
     unlockRateRequired: 0.2,      // était 0.3
-    unlockDialogue: '🍺 La Taverne signe ! "On veut un chatbot pour les réservations."',
+    unlockDialogue: '☕ Le Comptoir signe ! "Un chatbot pour prendre les réservations du midi, c\'est possible ?"',
   },
   {
     id: 'cabinet-medical',

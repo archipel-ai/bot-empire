@@ -155,7 +155,7 @@ assets/           → icônes SVG uniquement
 Titres spin-off planifiés :
 1. **Idle Gala** — club de boxe (assets déjà disponibles)
 2. **Idle FireOps** — caserne de sapeurs-pompiers
-3. **Idle La Taverne** — restaurant gastronomique
+3. **Idle Le Comptoir** — restaurant gastronomique
 
 ---
 
