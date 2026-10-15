@@ -1,3 +1,6 @@
+import { t } from '../i18n/i18n.ts';
+import type { UiKey } from '../i18n/ui.ts';
+
 /**
  * Hints — bulles d'aide non bloquantes, affichées au bon moment.
  * Remplace l'ancien tutoriel en fenêtres modales : le jeu reste jouable,
@@ -7,21 +10,21 @@
 export type HintId = 'first-click' | 'first-agent' | 'first-client';
 
 interface HintDef {
-  text:    string;
+  text:    UiKey;
   targets: string[]; // sélecteurs par ordre de priorité — le premier visible gagne
 }
 
 const HINTS: Record<HintId, HintDef> = {
   'first-click': {
-    text:    '⚡ Clique ici pour exécuter ta première tâche : chaque clic rapporte de l\'argent.',
+    text:    'hint.firstClick',
     targets: ['#click-fab', '#btn-click'],
   },
   'first-agent': {
-    text:    '🤖 Tu peux recruter ton premier agent ! Il travaille pour toi en continu, même hors ligne.',
+    text:    'hint.firstAgent',
     targets: ['[data-agent="bot-workflows"] .btn-buy', '.tab[data-tab="agents"]'],
   },
   'first-client': {
-    text:    '🤝 Ton premier client a signé : il ajoute un bonus permanent. D\'autres suivront si ta production grimpe.',
+    text:    'hint.firstClient',
     targets: ['.tab[data-tab="clients"]'],
   },
 };
@@ -50,8 +53,9 @@ export class Hints {
     el.className = 'hint-bubble';
     el.setAttribute('role', 'status');
     el.setAttribute('aria-live', 'polite');
-    el.innerHTML = `<span class="hint-text"></span><button class="hint-close" type="button" aria-label="Fermer l'aide">×</button>`;
-    el.querySelector('.hint-text')!.textContent = HINTS[id].text;
+    el.innerHTML = `<span class="hint-text"></span><button class="hint-close" type="button">×</button>`;
+    el.querySelector('.hint-text')!.textContent = t(HINTS[id].text);
+    el.querySelector('.hint-close')!.setAttribute('aria-label', t('hint.close'));
     el.querySelector('.hint-close')!.addEventListener('click', () => this.dismiss(id));
     document.body.appendChild(el);
 

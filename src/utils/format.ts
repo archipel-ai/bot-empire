@@ -1,3 +1,5 @@
+import { t } from '../i18n/i18n.ts';
+
 const SUFFIXES = ['', 'K', 'M', 'B', 'T', 'Qa', 'Qi', 'Sx', 'Sp', 'Oc'];
 
 export function formatNumber(value: number, decimals = 2): string {
@@ -21,5 +23,5 @@ export function formatDuration(seconds: number): string {
   if (seconds < 60) return `${Math.floor(seconds)}s`;
   if (seconds < 3600) return `${Math.floor(seconds / 60)}m`;
   if (seconds < 86400) return `${Math.floor(seconds / 3600)}h`;
-  return `${Math.floor(seconds / 86400)}j`;
+  return t('duration.days', { n: Math.floor(seconds / 86400) });
 }

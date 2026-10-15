@@ -111,6 +111,25 @@ body {
   color: var(--accent-purple);
 }
 
+/* Bouton de langue FR/EN */
+.btn-lang {
+  flex-shrink: 0;
+  min-width: 36px;
+  min-height: 32px;
+  padding: 4px 8px;
+  background: transparent;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius);
+  color: var(--text-secondary);
+  font-family: 'Space Mono', monospace;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color 0.2s, color 0.2s;
+}
+.btn-lang:hover,
+.btn-lang:focus-visible { border-color: var(--accent-green); color: var(--accent-green); }
+
 /* ===== MAIN ===== */
 #main {
   display: grid;

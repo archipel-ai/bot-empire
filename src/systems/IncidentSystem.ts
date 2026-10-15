@@ -15,7 +15,7 @@ export interface IncidentQuestion {
   reward:   number;
 }
 
-const INCIDENTS: IncidentQuestion[] = [
+export const INCIDENTS: IncidentQuestion[] = [
   {
     client: 'MégaRetail',
     urgency: '🔴 CRITIQUE',

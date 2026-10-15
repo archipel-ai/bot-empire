@@ -25,6 +25,19 @@ import { REPUTATION_PERKS } from './config/reputationPerks.ts';
 import { spawnFloatingNumber, spawnPrestigeConfetti, flashScreen, typeText } from './utils/gamefeel.ts';
 import { formatRate } from './utils/format.ts';
 import { AGENTS } from './config/agents.ts';
+import { LANG, setLang, t, translateStaticDom } from './i18n/i18n.ts';
+import { applyContentLanguage } from './i18n/content.ts';
+
+// ─── LANGUE ──────────────────────────────────────────────────
+// Avant toute création de système : les configs sont traduites en place.
+applyContentLanguage();
+translateStaticDom();
+
+// L'Academy note les prompts avec des expressions régulières en français : masquée en anglais
+if (LANG === 'en') {
+  document.querySelector('.tab[data-tab="academy"]')?.classList.add('hidden');
+  document.getElementById('tab-academy')?.classList.add('hidden');
+}
 
 // ─── INIT ────────────────────────────────────────────────────
 
@@ -48,13 +61,18 @@ const marketBannerDesc = document.getElementById('market-banner-desc')!;
 const marketBannerEff  = document.getElementById('market-banner-effect')!;
 const marketBannerTime = document.getElementById('market-banner-timer')!;
 
+function marketEffectLabel(type: 'income' | 'click', mult: number): string {
+  if (type === 'click') return t('market.click', { mult });
+  return mult >= 1
+    ? t('market.incomeUp',   { n: Math.round((mult - 1) * 100) })
+    : t('market.incomeDown', { n: Math.round((1 - mult) * 100) });
+}
+
 market.setCallbacks(
   (ev) => {
     const mult   = ev.event.effect.multiplier;
     const isBoost = mult >= 1;
-    const label  = ev.event.effect.type === 'income'
-      ? (isBoost ? `+${Math.round((mult - 1) * 100)}% revenus` : `−${Math.round((1 - mult) * 100)}% revenus`)
-      : `×${mult} clics`;
+    const label  = marketEffectLabel(ev.event.effect.type, mult);
     marketBannerIcon.textContent = ev.event.icon;
     marketBannerName.textContent = ev.event.name;
     marketBannerDesc.textContent = ev.event.description;
@@ -66,7 +84,7 @@ market.setCallbacks(
   },
   (ev) => {
     marketBanner.classList.add('hidden');
-    notify(`📊 Fin d'événement : ${ev.event.name}`, 'orange');
+    notify(t('market.end', { name: ev.event.name }), 'orange');
   },
 );
 
@@ -118,9 +136,7 @@ applyReputationEffects();
   if (ev) {
     const mult    = ev.event.effect.multiplier;
     const isBoost = mult >= 1;
-    const label   = ev.event.effect.type === 'income'
-      ? (isBoost ? `+${Math.round((mult - 1) * 100)}% revenus` : `−${Math.round((1 - mult) * 100)}% revenus`)
-      : `×${mult} clics`;
+    const label   = marketEffectLabel(ev.event.effect.type, mult);
     marketBannerIcon.textContent = ev.event.icon;
     marketBannerName.textContent = ev.event.name;
     marketBannerDesc.textContent = ev.event.description;
@@ -137,7 +153,7 @@ const tabCountContracts = document.getElementById('tab-count-contracts')!;
 contractSys.init(
   (contract) => {
     // Nouveau contrat disponible
-    notify(`📋 Nouveau contrat : ${contract.title}`, 'orange');
+    notify(t('contract.new', { title: contract.title }), 'orange');
     tabCountContracts.classList.add('has-new');
     renderContracts();
   },
@@ -146,7 +162,7 @@ contractSys.init(
     state = { ...state, currency: state.currency + contract.reward, totalEarned: state.totalEarned + contract.reward };
     saveSystem.save(state);
     renderer.markDirty();
-    notifyMilestone(`✅ Contrat complété ! +${formatCurrency(contract.reward)} de ${contract.client}`);
+    notifyMilestone(t('contract.done', { reward: formatCurrency(contract.reward), client: contract.client }));
     playPurchase();
     renderContracts();
   },
@@ -185,7 +201,7 @@ function closeModal(id: string): void {
 
 // Stage change callback
 bureau.onStageChange = (stage) => {
-  notify(`${stage.icon} Nouveau bureau : ${stage.label} — ${stage.sublabel}`, 'orange');
+  notify(t('bureau.newStage', { icon: stage.icon, label: stage.label, sublabel: stage.sublabel }), 'orange');
   playMilestone();
 };
 
@@ -210,11 +226,11 @@ if (urlState) {
   const unlockedCli = Object.values(urlState.clientsUnlocked).filter(Boolean).length;
   openModal('import-url-overlay', () => {
     document.getElementById('import-stats')!.innerHTML = `
-      <div class="import-stat-row"><span>Trésorerie</span><span>${formatCurrency(urlState.currency)}</span></div>
-      <div class="import-stat-row"><span>Total gagné</span><span>${formatCurrency(urlState.totalEarned)}</span></div>
-      <div class="import-stat-row"><span>Agents</span><span>${totalAgents}</span></div>
-      <div class="import-stat-row"><span>Clients</span><span>${unlockedCli}</span></div>
-      <div class="import-stat-row"><span>Prestiges</span><span>${urlState.prestigeCount}</span></div>
+      <div class="import-stat-row"><span>${t('import.treasury')}</span><span>${formatCurrency(urlState.currency)}</span></div>
+      <div class="import-stat-row"><span>${t('import.total')}</span><span>${formatCurrency(urlState.totalEarned)}</span></div>
+      <div class="import-stat-row"><span>${t('import.agents')}</span><span>${totalAgents}</span></div>
+      <div class="import-stat-row"><span>${t('import.clients')}</span><span>${unlockedCli}</span></div>
+      <div class="import-stat-row"><span>${t('import.prestiges')}</span><span>${urlState.prestigeCount}</span></div>
     `;
   });
 }
@@ -233,7 +249,7 @@ if (CLOUD_SAVE_ENABLED) {
       renderer.markDirty();
       bureau.update(0, state);
       // Restauration depuis le cloud — important quand on change d'appareil ou de contexte (PWA iOS)
-      notifyMilestone('☁️ Progression restaurée depuis le cloud !');
+      notifyMilestone(t('save.cloudRestored'));
     } else {
       cloud.push(state);
     }
@@ -245,14 +261,14 @@ if (CLOUD_SAVE_ENABLED) {
 
 const MILESTONES = [10, 100, 1_000, 10_000, 100_000, 1_000_000, 10_000_000, 100_000_000];
 const MILESTONE_LABELS: Record<number, string> = {
-  10: '🎉 Premiers €10 gagnés !',
-  100: '💰 €100 en poche !',
-  1_000: '🚀 €1 000 — l\'agence décolle !',
-  10_000: '⭐ €10 000 — client premium débloqué !',
-  100_000: '🔥 €100K — vous êtes sérieux !',
-  1_000_000: '👑 €1M — empire en construction !',
-  10_000_000: '💎 €10M — légende du secteur !',
-  100_000_000: '🌍 €100M — vous avez tout scalé !',
+  10: t('milestone.10'),
+  100: t('milestone.100'),
+  1_000: t('milestone.1k'),
+  10_000: t('milestone.10k'),
+  100_000: t('milestone.100k'),
+  1_000_000: t('milestone.1m'),
+  10_000_000: t('milestone.10m'),
+  100_000_000: t('milestone.100m'),
 };
 // Initialiser l'index milestone en fonction de l'état chargé
 let milestoneIdx = MILESTONES.findIndex(m => m > state.totalEarned);
@@ -295,7 +311,7 @@ function gameLoop(timestamp: number): void {
     result.newClients.forEach(clientId => {
       renderer.markDirty();
       const def = CLIENTS.find(c => c.id === clientId);
-      const msg = def?.unlockDialogue ?? `🤝 Nouveau client : ${clientId}`;
+      const msg = def?.unlockDialogue ?? t('client.new', { name: clientId });
       notifyMilestone(msg);
       playClientUnlock();
       hints.show('first-client', HINT_CLIENT_AUTOHIDE_MS);
@@ -309,7 +325,7 @@ function gameLoop(timestamp: number): void {
 
     // Milestones
     while (milestoneIdx < MILESTONES.length && state.totalEarned >= MILESTONES[milestoneIdx]) {
-      const label = MILESTONE_LABELS[MILESTONES[milestoneIdx]] ?? `🏆 ${formatCurrency(MILESTONES[milestoneIdx])} atteints !`;
+      const label = MILESTONE_LABELS[MILESTONES[milestoneIdx]] ?? t('milestone.generic', { amount: formatCurrency(MILESTONES[milestoneIdx]) });
       notifyMilestone(label);
       playMilestone();
       flashScreen('rgba(0,255,136,0.07)');
@@ -371,7 +387,7 @@ btnClickFab.addEventListener('click', (e) => {
 btnEcho.addEventListener('click', () => {
   if (!echo.canActivate()) return;
   echo.activate();
-  notify('↺ Mode ÉCHO activé — vos clics se rejouent pendant 60s !', 'orange');
+  notify(t('echo.activated'), 'orange');
 });
 
 // Délégation — achat agent
@@ -383,7 +399,7 @@ document.getElementById('tab-agents')!.addEventListener('click', (e) => {
   state = engine.buyAgent(state, agentId);
   if ((state.agents[agentId]?.count ?? 0) > prev) {
     renderer.markDirty();
-    notify(`🤖 Agent recruté !`, 'green');
+    notify(t('agent.recruited'), 'green');
     playPurchase();
     hints.dismiss('first-agent');
     // Flash achat sur la card
@@ -404,7 +420,7 @@ document.getElementById('tab-upgrades')!.addEventListener('click', (e) => {
   state = engine.buyUpgrade(state, upgradeId);
   if (!prev && state.upgradesPurchased[upgradeId]) {
     renderer.markDirty();
-    notify(`⚙️ Upgrade activé !`, 'purple');
+    notify(t('upgrade.activated'), 'purple');
     playPurchase();
     // Flash achat sur la card
     const card = btn.closest('.upgrade-card');
@@ -447,8 +463,8 @@ document.getElementById('btn-prestige')!.addEventListener('click', () => {
   const nextThreshold = engine.getPrestigeThreshold({ ...state, prestigeCount: state.prestigeCount + 1 });
   openModal('prestige-overlay', () => {
     document.getElementById('modal-value')!.textContent       = formatCurrency(state.totalEarned);
-    document.getElementById('modal-multiplier')!.textContent  = `+15% revenu & +${earnedRP} ⭐ Réputation`;
-    document.getElementById('modal-total-multi')!.textContent = `×${newMult.toFixed(2)} — prochain objectif : ${formatCurrency(nextThreshold)}`;
+    document.getElementById('modal-multiplier')!.textContent  = t('prestige.gain', { rp: earnedRP });
+    document.getElementById('modal-total-multi')!.textContent = t('prestige.next', { mult: newMult.toFixed(2), amount: formatCurrency(nextThreshold) });
   });
 });
 
@@ -463,7 +479,7 @@ document.getElementById('btn-prestige-confirm')!.addEventListener('click', () =>
   playPrestige();
   spawnPrestigeConfetti();
   flashScreen('rgba(124,58,237,0.12)');
-  notify(`🏆 Agence vendue ! +${rpGained} ⭐ Réputation acquis.`, 'purple');
+  notify(t('prestige.done', { rp: rpGained }), 'purple');
   renderReputation();
 });
 
@@ -484,11 +500,20 @@ document.getElementById('btn-import-url-confirm')!.addEventListener('click', () 
   renderer.markDirty();
   closeModal('import-url-overlay');
   history.replaceState(null, '', window.location.pathname);
-  notify('📥 Sauvegarde importée avec succès !', 'green');
+  notify(t('save.importedUrl'), 'green');
 });
 document.getElementById('btn-import-url-cancel')!.addEventListener('click', () => {
   closeModal('import-url-overlay');
   history.replaceState(null, '', window.location.pathname);
+});
+
+// ─── LANGUE ──────────────────────────────────────────────────
+
+// Bouton FR/EN : mémorise le choix puis recharge (tous les textes sont posés au démarrage)
+document.getElementById('btn-lang')!.addEventListener('click', () => {
+  saveSystem.save(state);
+  setLang(LANG === 'fr' ? 'en' : 'fr');
+  window.location.reload();
 });
 
 // ─── SAVE ACTIONS ────────────────────────────────────────────
@@ -496,7 +521,7 @@ document.getElementById('btn-import-url-cancel')!.addEventListener('click', () =
 // Export JSON
 document.getElementById('btn-export')!.addEventListener('click', () => {
   saveSystem.exportToFile(state);
-  notify('💾 Sauvegarde exportée !', 'green');
+  notify(t('save.exported'), 'green');
 });
 
 // Import JSON
@@ -511,9 +536,9 @@ document.getElementById('btn-import')!.addEventListener('change', (e) => {
       state = imported;
       saveSystem.save(state);
       renderer.markDirty();
-      notify('📂 Sauvegarde importée !', 'green');
+      notify(t('save.imported'), 'green');
     } else {
-      notify('❌ Fichier invalide.', 'orange');
+      notify(t('save.invalid'), 'orange');
     }
     // Reset input pour permettre de re-importer le même fichier
     (e.target as HTMLInputElement).value = '';
@@ -532,12 +557,12 @@ document.getElementById('btn-share-close')!.addEventListener('click', () => {
 });
 document.getElementById('btn-copy-url')!.addEventListener('click', () => {
   navigator.clipboard.writeText(shareUrlInput.value).then(() => {
-    notify('🔗 Lien copié !', 'green');
+    notify(t('save.linkCopied'), 'green');
     closeModal('share-overlay');
   }).catch(() => {
     shareUrlInput.select();
     document.execCommand('copy');
-    notify('🔗 Lien copié !', 'green');
+    notify(t('save.linkCopied'), 'green');
     closeModal('share-overlay');
   });
 });
@@ -559,14 +584,14 @@ function updateEchoUI(): void {
   btnEcho.classList.toggle('active-echo', es.isActive);
 
   if (es.isActive) {
-    echoSub.textContent = `Actif — ${es.replayRemaining}s restantes`;
+    echoSub.textContent = t('echo.active', { n: es.replayRemaining });
     echoBarWrap.style.display = '';
     echoBarFill.style.width   = `${(es.replayRemaining / 60) * 100}%`;
     echoTimerLbl.textContent  = `${es.replayRemaining}s`;
   } else if (es.isOnCooldown) {
     const m = Math.floor(es.cooldownRemaining / 60);
     const s = es.cooldownRemaining % 60;
-    echoSub.textContent = `Recharge — ${m}:${String(s).padStart(2,'0')}`;
+    echoSub.textContent = t('echo.cooldown', { time: `${m}:${String(s).padStart(2,'0')}` });
     echoBarWrap.style.display = '';
     echoBarFill.style.width   = `${((120 - es.cooldownRemaining) / 120) * 100}%`;
     echoTimerLbl.textContent  = `${m}:${String(s).padStart(2,'0')}`;
@@ -575,9 +600,9 @@ function updateEchoUI(): void {
     echoBarFill.style.background = 'var(--accent-blue)';
     echoBarWrap.style.display    = 'none';
     if (es.clicksRecorded < 3) {
-      echoSub.textContent = `Cliquez ${3 - es.clicksRecorded}× de plus pour activer`;
+      echoSub.textContent = t('echo.needClicks', { n: 3 - es.clicksRecorded });
     } else {
-      echoSub.textContent = `${es.clicksRecorded} clics mémorisés — prêt !`;
+      echoSub.textContent = t('echo.ready', { n: es.clicksRecorded });
     }
   }
 }
@@ -642,10 +667,11 @@ function offerIncident(q: IncidentQuestion): void {
   el.className = 'notif orange incident-notice';
   el.innerHTML = `
     <button class="incident-notice-open" type="button"></button>
-    <button class="incident-notice-close" type="button" aria-label="Ignorer l'incident">×</button>
+    <button class="incident-notice-close" type="button">×</button>
   `;
+  el.querySelector('.incident-notice-close')!.setAttribute('aria-label', t('incident.ignore'));
   el.querySelector('.incident-notice-open')!.textContent =
-    `⚠️ Incident chez ${q.client} — aider (+${formatCurrency(q.reward)})`;
+    t('incident.notice', { client: q.client, reward: formatCurrency(q.reward) });
   el.querySelector('.incident-notice-open')!.addEventListener('click', () => {
     removeIncidentNotice();
     showIncident(q);
@@ -720,13 +746,13 @@ function resolveIncident(chosen: number): void {
   if (isRight) {
     state = { ...state, currency: state.currency + q.reward, totalEarned: state.totalEarned + q.reward };
     incidentResultIcon.textContent = '✅';
-    incidentLesson.textContent     = `+${formatCurrency(q.reward)} encaissés ! ${q.lesson}`;
-    notify(`✅ Incident résolu ! +${formatCurrency(q.reward)}`, 'green');
+    incidentLesson.textContent     = t('incident.won', { reward: formatCurrency(q.reward), lesson: q.lesson });
+    notify(t('incident.solved', { reward: formatCurrency(q.reward) }), 'green');
     playPurchase();
   } else {
     incidentResultIcon.textContent = '❌';
     incidentLesson.textContent     = q.lesson;
-    notify('❌ Mauvaise réponse — incident non résolu.', 'orange');
+    notify(t('incident.wrong'), 'orange');
   }
 
   incidentSkipBtn.classList.add('hidden');
@@ -780,7 +806,7 @@ function renderContracts(): void {
 
   tabContracts.innerHTML = `
     <div class="contracts-board">
-      <div class="contracts-header">BOARD DE CONTRATS — ${available} disponible${available > 1 ? 's' : ''}, ${accepted} en cours</div>
+      <div class="contracts-header">${t('contract.board', { available, accepted })}</div>
       ${slots.map((slot, i) => renderContractSlot(slot, i)).join('')}
     </div>
   `;
@@ -793,7 +819,7 @@ function renderContracts(): void {
     btn.addEventListener('click', () => {
       if (!contractSys.canAccept(slot, state)) return;
       contractSys.accept(slot);
-      notify(`✅ Contrat accepté ! Livraison dans ${formatTimeLeft(slot.workTime * 1000).label}`, 'green');
+      notify(t('contract.accepted', { time: formatTimeLeft(slot.workTime * 1000).label }), 'green');
       renderContracts();
     });
   });
@@ -803,13 +829,13 @@ function renderContractSlot(slot: ActiveContract | null, i: number): string {
   if (!slot) {
     return `
       <div class="contract-empty-slot">
-        <div>⏳ Slot ${i + 1} — En attente d'un nouveau contrat</div>
-        <div class="slot-timer">Prochain contrat dans 20-40 min</div>
+        <div>${t('contract.emptySlot', { n: i + 1 })}</div>
+        <div class="slot-timer">${t('contract.nextIn')}</div>
       </div>
     `;
   }
 
-  const rarityLabel = slot.rarity === 'epic' ? '⭐ ÉPIQUE' : slot.rarity === 'rare' ? '✦ RARE' : 'STANDARD';
+  const rarityLabel = t(slot.rarity === 'epic' ? 'contract.epic' : slot.rarity === 'rare' ? 'contract.rare' : 'contract.common');
   const reqs = requirementLabel(slot, state);
   const canAccept = contractSys.canAccept(slot, state);
   const progress  = contractSys.getProgress(slot);
@@ -837,7 +863,7 @@ function renderContractSlot(slot: ActiveContract | null, i: number): string {
           <span class="contract-reward">+${formatCurrency(slot.reward)}</span>
           <span class="contract-timer ${timeLeft.urgent ? 'urgent' : ''}">⏱ ${timeLeft.label}</span>
           <button class="btn-contract" data-accept="${slot.id}" ${canAccept ? '' : 'disabled'}>
-            ${canAccept ? 'Accepter' : 'Requis ↑'}
+            ${canAccept ? t('contract.accept') : t('contract.required')}
           </button>
         </div>
       </div>
@@ -863,7 +889,7 @@ function renderContractSlot(slot: ActiveContract | null, i: number): string {
         </div>
         <div class="contract-bottom">
           <span class="contract-reward">+${formatCurrency(slot.reward)}</span>
-          <button class="btn-contract in-progress" disabled>En cours...</button>
+          <button class="btn-contract in-progress" disabled>${t('contract.inProgress')}</button>
         </div>
       </div>
     `;
@@ -892,12 +918,11 @@ function renderReputation(): void {
     tabReputation.innerHTML = `
       <div class="rep-intro">
         <span class="rep-intro-icon">⭐</span>
-        <div class="rep-intro-title">Réputation — Bonus permanents</div>
+        <div class="rep-intro-title">${t('rep.introTitle')}</div>
         <p class="rep-intro-text">
-          Vendez votre agence (Prestige) pour gagner des points de réputation.<br>
-          Dépensez-les ici pour débloquer des avantages permanents qui survivent à chaque reset.
+          ${t('rep.introText')}
           <br><br>
-          <strong>Prochain prestige : +${nextRP} ⭐</strong>
+          <strong>${t('rep.nextShort', { rp: nextRP })}</strong>
         </p>
       </div>
     `;
@@ -920,11 +945,11 @@ function renderReputation(): void {
         </div>
         <div class="rep-perk-footer">
           ${owned
-            ? `<span class="rep-perk-cost owned-label">✓ Activé</span>
-               <button class="btn-rep-buy owned" disabled>Acquis</button>`
+            ? `<span class="rep-perk-cost owned-label">${t('rep.enabled')}</span>
+               <button class="btn-rep-buy owned" disabled>${t('rep.owned')}</button>`
             : `<span class="rep-perk-cost">⭐ ${perk.cost}</span>
                <button class="btn-rep-buy" data-buy-rep="${perk.id}" ${canBuy ? '' : 'disabled'}>
-                 ${canBuy ? 'Acheter' : `Manque ${perk.cost - rp} ⭐`}
+                 ${canBuy ? t('rep.buy') : t('rep.missing', { n: perk.cost - rp })}
                </button>`
           }
         </div>
@@ -936,10 +961,10 @@ function renderReputation(): void {
     <div class="reputation-header">
       <div class="reputation-balance">
         <span class="rep-value">⭐ ${rp}</span>
-        <span class="rep-label">Points de réputation</span>
+        <span class="rep-label">${t('rep.points')}</span>
       </div>
       <div class="reputation-next">
-        Prochain prestige<br><strong>+${nextRP} ⭐</strong>
+        ${t('rep.next')}<br><strong>+${nextRP} ⭐</strong>
       </div>
     </div>
     <div class="rep-perk-grid">${perksHtml}</div>
@@ -953,7 +978,7 @@ function renderReputation(): void {
       state = engine.buyRepPerk(state, perkId);
       if (!prev && engine.hasRepPerk(state, perkId)) {
         const perk = REPUTATION_PERKS.find(p => p.id === perkId)!;
-        notify(`${perk.icon} ${perk.name} activé !`, 'purple');
+        notify(t('rep.activated', { icon: perk.icon, name: perk.name }), 'purple');
         playPurchase();
         applyReputationEffects();
         saveSystem.save(state);

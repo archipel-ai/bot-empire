@@ -4,6 +4,7 @@ import { AGENTS } from '../config/agents.ts';
 import { CLIENTS } from '../config/clients.ts';
 import { UPGRADES } from '../config/upgrades.ts';
 import { formatCurrency, formatRate } from '../utils/format.ts';
+import { t } from '../i18n/i18n.ts';
 
 export class Renderer {
   private engine: GameEngine;
@@ -83,7 +84,7 @@ export class Renderer {
     const threshold = this.engine.getPrestigeThreshold(state);
     this.elPrestigeBar.style.width = `${pct}%`;
     this.elPrestigePct.textContent = `${pct}%`;
-    this.elPrestigeTarget.textContent = `Objectif : ${formatCurrency(threshold)}`;
+    this.elPrestigeTarget.textContent = t('prestige.target', { amount: formatCurrency(threshold) });
     this.elBtnPrestige.disabled = !canPrestige;
 
     // Tab counts
@@ -128,8 +129,8 @@ export class Renderer {
             <div class="agent-name">${def.name}</div>
             <div class="agent-desc">${def.description}</div>
             <div class="agent-prod-detail">
-              <span class="agent-prod-unit">${formatRate(unitProd)}/unité</span>
-              ${count > 0 ? `<span class="agent-prod-total">${formatRate(prod)} total</span>` : ''}
+              <span class="agent-prod-unit">${t('agent.perUnit', { rate: formatRate(unitProd) })}</span>
+              ${count > 0 ? `<span class="agent-prod-total">${t('agent.total', { rate: formatRate(prod) })}</span>` : ''}
             </div>
           </div>
           <div class="agent-right">
@@ -176,11 +177,11 @@ export class Renderer {
           <div class="client-info">
             <div class="client-name">${def.name}</div>
             <div class="client-sector">${def.sector}</div>
-            <div class="client-revenue">+${formatRate(def.bonusPerSecond)} bonus</div>
-            ${!unlocked ? `<div class="client-unlock">Déblocage à ${formatRate(def.unlockRateRequired)} d'agents${remaining > 0 ? ` — manque ${formatRate(remaining)}` : ''}</div>` : ''}
+            <div class="client-revenue">${t('client.bonus', { rate: formatRate(def.bonusPerSecond) })}</div>
+            ${!unlocked ? `<div class="client-unlock">${t('client.unlockAt', { rate: formatRate(def.unlockRateRequired) })}${remaining > 0 ? t('client.missing', { rate: formatRate(remaining) }) : ''}</div>` : ''}
           </div>
           <span class="client-badge ${unlocked ? 'active' : 'locked'}">
-            ${unlocked ? 'Actif' : '🔒'}
+            ${unlocked ? t('client.active') : '🔒'}
           </span>
         </div>
       `;
@@ -193,7 +194,7 @@ export class Renderer {
     const visible = UPGRADES.filter(u => this.engine.isUpgradeVisible(state, u.id));
 
     if (visible.length === 0) {
-      this.elTabUpgrades.innerHTML = `<p style="color:var(--text-muted);text-align:center;padding:40px 20px;">Achetez des agents pour débloquer des upgrades.</p>`;
+      this.elTabUpgrades.innerHTML = `<p style="color:var(--text-muted);text-align:center;padding:40px 20px;">${t('upgrade.empty')}</p>`;
       return;
     }
 
@@ -210,7 +211,7 @@ export class Renderer {
             <div class="upgrade-effect">${def.effectLabel}</div>
           </div>
           ${purchased
-            ? `<button class="btn-upgrade purchased-btn" disabled>✓ Acheté</button>`
+            ? `<button class="btn-upgrade purchased-btn" disabled>${t('upgrade.bought')}</button>`
             : `<button class="btn-upgrade" data-buy-upgrade="${def.id}" ${canBuy ? '' : 'disabled'}>
                 ${formatCurrency(def.cost)}
               </button>`

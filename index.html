@@ -26,22 +26,23 @@
       </div>
       <div class="currency-display">
         <div class="currency-main">
-          <span class="label">TRÉSORERIE</span>
+          <span class="label" data-i18n="header.treasury">TRÉSORERIE</span>
           <span id="hd-currency">€0.00</span>
         </div>
         <div class="currency-rate">
-          <span class="label">PRODUCTION</span>
+          <span class="label" data-i18n="header.rate">PRODUCTION</span>
           <span id="hd-rate">+0.00/s</span>
         </div>
         <div class="currency-total">
-          <span class="label">TOTAL GAGNÉ</span>
+          <span class="label" data-i18n="header.total">TOTAL GAGNÉ</span>
           <span id="hd-total">€0.00</span>
         </div>
       </div>
       <div class="prestige-badge" id="prestige-badge" style="display:none">
         <span id="prestige-count">×0</span>
-        <span class="label">PRESTIGES</span>
+        <span class="label" data-i18n="header.prestiges">PRESTIGES</span>
       </div>
+      <button id="btn-lang" class="btn-lang" type="button" data-i18n="lang.switch" data-i18n-aria="lang.switchAria">EN</button>
     </header>
 
     <!-- MARCHÉ IA VIVANT — bannière événement -->
@@ -64,7 +65,7 @@
         <!-- BUREAU VIRTUEL -->
         <div id="bureau" class="stage-chambre">
           <div class="bureau-header">
-            <span class="bureau-title">BUREAU VIRTUEL</span>
+            <span class="bureau-title" data-i18n="bureau.title">BUREAU VIRTUEL</span>
             <span class="bureau-count" id="bureau-count">0 agents</span>
           </div>
           <div class="bureau-floor"></div>
@@ -76,14 +77,14 @@
           <div id="bureau-chars"></div>
           <div class="bureau-empty" id="bureau-empty">
             <span class="bureau-empty-icon">🏢</span>
-            <span>Recrutez votre premier agent</span>
+            <span data-i18n="bureau.empty">Recrutez votre premier agent</span>
           </div>
         </div>
 
         <div id="click-zone">
           <button id="btn-click" class="btn-click">
             <span class="btn-click-icon">⚡</span>
-            <span class="btn-click-label">Exécuter une tâche</span>
+            <span class="btn-click-label" data-i18n="click.label">Exécuter une tâche</span>
             <span class="btn-click-value" id="click-value-display">+€1.00</span>
           </button>
           <div class="click-ripple" id="click-ripple"></div>
@@ -94,8 +95,8 @@
           <button id="btn-echo" class="btn-echo" disabled>
             <span class="echo-icon">↺</span>
             <div class="echo-text">
-              <span class="echo-label">MODE ÉCHO</span>
-              <span class="echo-sub" id="echo-sub">Cliquez 3× pour activer</span>
+              <span class="echo-label" data-i18n="echo.label">MODE ÉCHO</span>
+              <span class="echo-sub" id="echo-sub"></span>
             </div>
           </button>
           <div class="echo-bar-wrap" id="echo-bar-wrap" style="display:none">
@@ -107,45 +108,45 @@
         </div>
 
         <div class="stats-card">
-          <div class="stats-title">TABLEAU DE BORD</div>
+          <div class="stats-title" data-i18n="stats.title">TABLEAU DE BORD</div>
           <div class="stat-row">
-            <span class="stat-label">Agents actifs</span>
+            <span class="stat-label" data-i18n="stats.agents">Agents actifs</span>
             <span class="stat-value" id="stat-agents">0</span>
           </div>
           <div class="stat-row">
-            <span class="stat-label">Contrats signés</span>
+            <span class="stat-label" data-i18n="stats.clients">Contrats signés</span>
             <span class="stat-value" id="stat-clients">0</span>
           </div>
           <div class="stat-row">
-            <span class="stat-label">Upgrades achetés</span>
+            <span class="stat-label" data-i18n="stats.upgrades">Upgrades achetés</span>
             <span class="stat-value" id="stat-upgrades">0</span>
           </div>
           <div class="stat-row">
-            <span class="stat-label">Multiplicateur</span>
+            <span class="stat-label" data-i18n="stats.multiplier">Multiplicateur</span>
             <span class="stat-value accent-purple" id="stat-multiplier">×1.00</span>
           </div>
           <div class="stat-row">
-            <span class="stat-label">Production offline</span>
+            <span class="stat-label" data-i18n="stats.offline">Production offline</span>
             <span class="stat-value accent-green" id="stat-offline">—</span>
           </div>
         </div>
 
         <!-- SAUVEGARDE -->
         <div class="save-actions">
-          <button id="btn-share" class="btn-save-action btn-share-action" title="Partager mon agence">
+          <button id="btn-share" class="btn-save-action btn-share-action" title="Partager mon agence" data-i18n="save.share" data-i18n-title="save.shareTitle">
             🔗 Partager
           </button>
-          <button id="btn-export" class="btn-save-action" title="Exporter la sauvegarde">
+          <button id="btn-export" class="btn-save-action" title="Exporter la sauvegarde" data-i18n="save.export" data-i18n-title="save.exportTitle">
             💾 Exporter
           </button>
-          <label id="btn-import-label" class="btn-save-action" title="Importer une sauvegarde">
-            📂 Importer
+          <label id="btn-import-label" class="btn-save-action" title="Importer une sauvegarde" data-i18n-title="save.importTitle">
+            <span data-i18n="save.import">📂 Importer</span>
             <input type="file" id="btn-import" accept=".json" style="display:none" />
           </label>
         </div>
 
         <div id="prestige-card" class="prestige-card">
-          <div class="prestige-card-title">VENDRE L'AGENCE</div>
+          <div class="prestige-card-title" data-i18n="prestige.cardTitle">VENDRE L'AGENCE</div>
           <div class="prestige-progress-wrap">
             <div class="prestige-progress-bar">
               <div id="prestige-bar-fill" class="prestige-bar-fill" style="width:0%"></div>
@@ -153,7 +154,7 @@
             <span id="prestige-pct">0%</span>
           </div>
           <div class="prestige-target" id="prestige-target">Objectif : €10.00M</div>
-          <button id="btn-prestige" class="btn-prestige" disabled>
+          <button id="btn-prestige" class="btn-prestige" disabled data-i18n="prestige.button">
             Vendre l'Agence (+15% permanent)
           </button>
         </div>
@@ -163,27 +164,27 @@
       <section id="panel-right">
         <nav class="tabs">
           <button class="tab active" data-tab="agents">
-            <span>🤖</span> Agents
+            <span>🤖</span> <span data-i18n="tab.agents">Agents</span>
             <span class="tab-count" id="tab-count-agents">0</span>
           </button>
           <button class="tab" data-tab="clients">
-            <span>🤝</span> Clients
+            <span>🤝</span> <span data-i18n="tab.clients">Clients</span>
             <span class="tab-count" id="tab-count-clients">0</span>
           </button>
           <button class="tab" data-tab="upgrades">
-            <span>⚙️</span> Upgrades
+            <span>⚙️</span> <span data-i18n="tab.upgrades">Upgrades</span>
             <span class="tab-count" id="tab-count-upgrades">0</span>
           </button>
           <button class="tab" data-tab="contracts">
-            <span>📋</span> Contrats
+            <span>📋</span> <span data-i18n="tab.contracts">Contrats</span>
             <span class="tab-count tab-count-pulse" id="tab-count-contracts">0</span>
           </button>
           <button class="tab" data-tab="reputation">
-            <span>⭐</span> Réputation
+            <span>⭐</span> <span data-i18n="tab.reputation">Réputation</span>
             <span class="tab-count" id="tab-count-reputation">0</span>
           </button>
           <button class="tab" data-tab="academy">
-            <span>🎓</span> Academy
+            <span>🎓</span> <span data-i18n="tab.academy">Academy</span>
             <span class="tab-count tab-count-pulse" id="tab-count-academy">0</span>
           </button>
         </nav>
@@ -217,26 +218,26 @@
     <div id="prestige-overlay" class="overlay hidden" role="dialog" aria-modal="true">
       <div class="modal">
         <div class="modal-icon">🏆</div>
-        <h2 class="modal-title">CESSION D'AGENCE</h2>
-        <p class="modal-subtitle">Vous êtes sur le point de vendre votre agence.</p>
+        <h2 class="modal-title" data-i18n="prestige.modalTitle">CESSION D'AGENCE</h2>
+        <p class="modal-subtitle" data-i18n="prestige.modalSub">Vous êtes sur le point de vendre votre agence.</p>
         <div class="modal-stats">
           <div class="modal-stat">
-            <span class="label">Valeur de cession</span>
+            <span class="label" data-i18n="prestige.value">Valeur de cession</span>
             <span class="value accent-green" id="modal-value">€0</span>
           </div>
           <div class="modal-stat">
-            <span class="label">Multiplicateur acquis</span>
+            <span class="label" data-i18n="prestige.gained">Multiplicateur acquis</span>
             <span class="value accent-purple" id="modal-multiplier">+15%</span>
           </div>
           <div class="modal-stat">
-            <span class="label">Total après prestige</span>
+            <span class="label" data-i18n="prestige.after">Total après prestige</span>
             <span class="value" id="modal-total-multi">×1.15</span>
           </div>
         </div>
-        <p class="modal-warning">⚠️ Tous vos agents et contrats seront réinitialisés.</p>
+        <p class="modal-warning" data-i18n="prestige.warning">⚠️ Tous vos agents et contrats seront réinitialisés.</p>
         <div class="modal-actions">
-          <button id="btn-prestige-confirm" class="btn-confirm">Confirmer la vente</button>
-          <button id="btn-prestige-cancel" class="btn-cancel">Annuler</button>
+          <button id="btn-prestige-confirm" class="btn-confirm" data-i18n="prestige.confirm">Confirmer la vente</button>
+          <button id="btn-prestige-cancel" class="btn-cancel" data-i18n="prestige.cancel">Annuler</button>
         </div>
       </div>
     </div>
@@ -246,18 +247,18 @@
     <div id="share-overlay" class="overlay hidden" role="dialog">
       <div class="modal modal-share">
         <div class="modal-icon">🔗</div>
-        <h2 class="modal-title">PARTAGER MON AGENCE</h2>
-        <p class="modal-subtitle">Ce lien contient ta progression complète. Envoie-le à toi-même pour changer d'appareil, migrer vers la PWA (écran d'accueil iPhone), ou partager tes stats !</p>
-        <div class="share-tip">💡 Sur iPhone : copie ce lien avant d'ajouter à l'écran d'accueil. La PWA et Safari ont des sauvegardes séparées — le cloud Firebase synchronise automatiquement.</div>
+        <h2 class="modal-title" data-i18n="share.title">PARTAGER MON AGENCE</h2>
+        <p class="modal-subtitle" data-i18n="share.subtitle">Ce lien contient ta progression complète. Envoie-le à toi-même pour changer d'appareil, migrer vers la PWA (écran d'accueil iPhone), ou partager tes stats !</p>
+        <div class="share-tip" data-i18n="share.tip">💡 Sur iPhone : copie ce lien avant d'ajouter à l'écran d'accueil. La PWA et Safari ont des sauvegardes séparées — le cloud Firebase synchronise automatiquement.</div>
         <div class="share-url-wrap">
           <input id="share-url-input" class="share-url-input" readonly />
-          <button id="btn-copy-url" class="btn-copy">Copier</button>
+          <button id="btn-copy-url" class="btn-copy" data-i18n="share.copy">Copier</button>
         </div>
         <div class="share-info-list">
-          <div class="share-info-row share-info-yes">✅ Partagé : progression, agents, €, prestiges</div>
-          <div class="share-info-row share-info-no">🔒 Non partagé : achats, boosters, suppression pubs</div>
+          <div class="share-info-row share-info-yes" data-i18n="share.yes">✅ Partagé : progression, agents, €, prestiges</div>
+          <div class="share-info-row share-info-no" data-i18n="share.no">🔒 Non partagé : achats, boosters, suppression pubs</div>
         </div>
-        <button id="btn-share-close" class="btn-cancel" style="width:100%;margin-top:8px">Fermer</button>
+        <button id="btn-share-close" class="btn-cancel" style="width:100%;margin-top:8px" data-i18n="share.close">Fermer</button>
       </div>
     </div>
 
@@ -265,13 +266,13 @@
     <div id="import-url-overlay" class="overlay hidden" role="dialog">
       <div class="modal modal-import">
         <div class="modal-icon">📥</div>
-        <h2 class="modal-title">SAUVEGARDE DÉTECTÉE</h2>
-        <p class="modal-subtitle">Ce lien contient une progression. Veux-tu la charger ?</p>
+        <h2 class="modal-title" data-i18n="import.title">SAUVEGARDE DÉTECTÉE</h2>
+        <p class="modal-subtitle" data-i18n="import.subtitle">Ce lien contient une progression. Veux-tu la charger ?</p>
         <div class="import-stats" id="import-stats"></div>
-        <p class="modal-warning">⚠️ Ta progression actuelle sera remplacée.</p>
+        <p class="modal-warning" data-i18n="import.warning">⚠️ Ta progression actuelle sera remplacée.</p>
         <div class="modal-actions">
-          <button id="btn-import-url-confirm" class="btn-confirm">Charger cette save</button>
-          <button id="btn-import-url-cancel"  class="btn-cancel">Garder la mienne</button>
+          <button id="btn-import-url-confirm" class="btn-confirm" data-i18n="import.confirm">Charger cette save</button>
+          <button id="btn-import-url-cancel"  class="btn-cancel" data-i18n="import.cancel">Garder la mienne</button>
         </div>
       </div>
     </div>
@@ -286,11 +287,11 @@
         <p id="incident-problem" class="incident-problem"></p>
         <p id="incident-question" class="incident-question"></p>
         <div id="incident-answers" class="incident-answers"></div>
-        <button id="btn-incident-skip" class="btn-cancel incident-skip">Ignorer cet incident</button>
+        <button id="btn-incident-skip" class="btn-cancel incident-skip" data-i18n="incident.skip">Ignorer cet incident</button>
         <div id="incident-result" class="incident-result hidden">
           <div id="incident-result-icon" class="incident-result-icon"></div>
           <p id="incident-lesson" class="incident-lesson"></p>
-          <button id="btn-incident-close" class="btn-confirm">Continuer</button>
+          <button id="btn-incident-close" class="btn-confirm" data-i18n="incident.continue">Continuer</button>
         </div>
       </div>
     </div>
@@ -299,18 +300,18 @@
     <div id="offline-overlay" class="overlay hidden" role="dialog">
       <div class="modal modal-offline">
         <div class="modal-icon">💤</div>
-        <h2 class="modal-title">BIENVENUE DE RETOUR</h2>
-        <p class="modal-subtitle">Vos agents ont travaillé pendant votre absence.</p>
+        <h2 class="modal-title" data-i18n="offline.title">BIENVENUE DE RETOUR</h2>
+        <p class="modal-subtitle" data-i18n="offline.subtitle">Vos agents ont travaillé pendant votre absence.</p>
         <div class="offline-earned">
-          <span class="label">Revenus offline</span>
+          <span class="label" data-i18n="offline.earned">Revenus offline</span>
           <span id="offline-earned-amount" class="accent-green">€0</span>
         </div>
-        <button id="btn-offline-close" class="btn-confirm">Encaisser</button>
+        <button id="btn-offline-close" class="btn-confirm" data-i18n="offline.collect">Encaisser</button>
       </div>
     </div>
 
     <!-- FAB CLIC (mobile uniquement) -->
-    <button id="click-fab" class="click-fab" aria-label="Exécuter une tâche">
+    <button id="click-fab" class="click-fab" aria-label="Exécuter une tâche" data-i18n-aria="click.label">
       <span class="click-fab-icon">⚡</span>
       <span class="click-fab-value" id="click-fab-value">+€1.00</span>
     </button>

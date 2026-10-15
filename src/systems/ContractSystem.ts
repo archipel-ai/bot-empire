@@ -200,6 +200,13 @@ export class ContractSystem {
     return Object.values(state.agents).reduce((sum, a) => sum + a.count * 0.1, 0);
   }
 
+  /** Les contrats sauvegardés gardent les textes de leur langue d'origine : on les relit depuis la config. */
+  private withCurrentTexts(slot: ActiveContract | null): ActiveContract | null {
+    if (!slot) return null;
+    const def = CONTRACTS.find(c => c.id === slot.id);
+    return def ? { ...slot, client: def.client, title: def.title, description: def.description } : slot;
+  }
+
   // ─── PERSISTANCE ──────────────────────────────────────────
 
   private save(): void {
@@ -217,7 +224,7 @@ export class ContractSystem {
       const raw = localStorage.getItem(SAVE_KEY);
       if (!raw) return;
       const data = JSON.parse(raw);
-      if (data.slots)      this.slots      = data.slots;
+      if (data.slots)      this.slots      = (data.slots as Array<ActiveContract | null>).map(s => this.withCurrentTexts(s));
       if (data.nextRefill) this.nextRefill  = data.nextRefill;
       if (data.usedIds)    this.usedIds     = new Set(data.usedIds);
     } catch { /* silencieux */ }

@@ -1,4 +1,5 @@
 import { GameState } from '../core/GameState.ts';
+import { t } from '../i18n/i18n.ts';
 
 // ─── STAGES ───────────────────────────────────────────────────
 
@@ -9,7 +10,7 @@ export interface BureauStage {
   icon:     string;
 }
 
-const STAGES: Array<{ minAgents: number; minPrestige: number } & BureauStage> = [
+export const STAGES: Array<{ minAgents: number; minPrestige: number } & BureauStage> = [
   { id: 'chambre',     minAgents: 0,   minPrestige: 0, icon: '🛋️', label: 'Chambre d\'ado',   sublabel: 'Le voyage commence ici' },
   { id: 'home-office', minAgents: 1,   minPrestige: 0, icon: '🖥️', label: 'Home Office',      sublabel: 'Les premiers projets arrivent' },
   { id: 'coworking',   minAgents: 10,  minPrestige: 0, icon: '☕', label: 'Espace Coworking', sublabel: 'L\'équipe prend forme' },
@@ -41,7 +42,7 @@ interface CharConfig {
   dialogues: string[];
 }
 
-const CONFIGS: Record<string, CharConfig> = {
+export const CONFIGS: Record<string, CharConfig> = {
   'bot-workflows': {
     color: '#00d4ff', badge: '🤖', speedFactor: 1.8, squareHead: true, scale: 1,
     names: ['BOT-001', 'NEXUS-7', 'UNIT-42', 'ALPHA-X', 'BOT-099', 'CIPHER', 'FLUX-2', 'NODE-5'],
@@ -98,7 +99,7 @@ interface LiveChar {
 const MAX_VISIBLE = 20;
 let uid = 0;
 
-const FOUNDER_DIALOGUES = [
+export const FOUNDER_DIALOGUES = [
   'On scale ! 🚀', "C'est bon ça...", 'Excellent travail !',
   'Encore un client !', 'Le plan se déroule', '💰 KPI au vert !',
   'On build ! ⚡', 'Série A en vue 👀', 'Pipeline plein 🔥',
@@ -199,14 +200,14 @@ export class Bureau {
         <div class="char-body founder-body"></div>
         <div class="char-legs founder-legs"><span></span><span></span></div>
       </div>
-      <div class="char-name founder-label">Fondateur</div>
+      <div class="char-name founder-label">${t('bureau.founder')}</div>
     `;
 
     this.container.appendChild(el);
     setTimeout(() => el.classList.remove('spawning'), 600);
 
     this.founder = {
-      agentId: 'founder', name: 'Fondateur',
+      agentId: 'founder', name: t('bureau.founder'),
       el, x, y, prevX: x,
       wanderTimer:   5 + Math.random() * 4,
       workTimer:     4 + Math.random() * 5,
@@ -250,7 +251,7 @@ export class Bureau {
 
     const total = this.chars.length;
     this.emptyEl.style.display = total === 0 ? '' : 'none';
-    this.countEl.textContent   = `${totalAgents} agent${totalAgents > 1 ? 's' : ''}`;
+    this.countEl.textContent   = t(totalAgents > 1 ? 'bureau.agentsPl' : 'bureau.agents', { n: totalAgents });
   }
 
   private computeTargets(agents: GameState['agents'], total: number): Record<string, number> {

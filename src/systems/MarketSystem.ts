@@ -105,7 +105,11 @@ export class MarketSystem {
       const raw = localStorage.getItem(SAVE_KEY);
       if (!raw) return;
       const data = JSON.parse(raw);
-      if (data.current && data.current.endsAt > Date.now()) this.current = data.current;
+      if (data.current && data.current.endsAt > Date.now()) {
+        // Textes relus depuis la config : la sauvegarde peut être dans l'autre langue
+        const event = MARKET_EVENTS.find(e => e.id === data.current.event?.id) ?? data.current.event;
+        this.current = { ...data.current, event };
+      }
       if (data.nextEventAt) this.nextEventAt = data.nextEventAt;
       if (data.recentIds)   this.recentIds   = data.recentIds;
     } catch { /* silencieux */ }
