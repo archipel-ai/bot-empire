@@ -81,6 +81,10 @@ const fr = {
   'tab.contracts':  'Contrats',
   'tab.reputation': 'Réputation',
   'tab.academy':    'Academy',
+  'tab.agency':     'Agence',
+  'panel.label':    'Onglets de gestion',
+  'panel.expand':   'Agrandir le panneau',
+  'panel.collapse': 'Réduire le panneau',
 
   // Agents / clients / upgrades (Renderer)
   'agent.perUnit':      '{rate}/unité',
@@ -253,6 +257,10 @@ const en: Record<UiKey, string> = {
   'tab.contracts':  'Contracts',
   'tab.reputation': 'Reputation',
   'tab.academy':    'Academy',
+  'tab.agency':     'Agency',
+  'panel.label':    'Management tabs',
+  'panel.expand':   'Expand the panel',
+  'panel.collapse': 'Collapse the panel',
 
   'agent.perUnit':      '{rate}/unit',
   'agent.total':        '{rate} total',

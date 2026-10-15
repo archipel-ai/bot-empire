@@ -14,6 +14,7 @@ import { playClick, playPurchase, playClientUnlock, playMilestone, playPrestige 
 import { EchoSystem } from './systems/EchoSystem.ts';
 import { IncidentSystem, type IncidentQuestion } from './systems/IncidentSystem.ts';
 import { Hints } from './ui/Hints.ts';
+import { Drawer } from './ui/Drawer.ts';
 import { CLIENTS } from './config/clients.ts';
 import { CloudSave } from './core/CloudSave.ts';
 import { FIREBASE_CONFIG, CLOUD_SAVE_ENABLED } from './config/firebase.ts';
@@ -48,6 +49,7 @@ const bureau      = new Bureau();
 const echo        = new EchoSystem();
 const incident    = new IncidentSystem();
 const hints       = new Hints();
+new Drawer();
 const cloud       = new CloudSave();
 const contractSys = new ContractSystem();
 const market      = new MarketSystem();
@@ -119,8 +121,6 @@ const echoBarWrap   = document.getElementById('echo-bar-wrap')!;
 const echoBarFill   = document.getElementById('echo-bar-fill')!;
 const echoTimerLbl  = document.getElementById('echo-timer-label')!;
 const btnClick      = document.getElementById('btn-click')    as HTMLButtonElement;
-const btnClickFab   = document.getElementById('click-fab')    as HTMLButtonElement;
-const elFabValue    = document.getElementById('click-fab-value')!
 
 let state = saveSystem.load();
 
@@ -352,8 +352,6 @@ function gameLoop(timestamp: number): void {
   updateEchoUI();
   updateContractProgressBars();
   hints.reposition();
-  // Valeur clic sur le FAB mobile
-  elFabValue.textContent = `+${formatCurrency(engine.getClickValue(state, market.getClickMultiplier()))}`;
   requestAnimationFrame(gameLoop);
 }
 
@@ -361,7 +359,7 @@ requestAnimationFrame(gameLoop);
 
 // ─── EVENTS ──────────────────────────────────────────────────
 
-// Logique clic partagée (btn-click + FAB)
+// Bouton de travail
 function handleClick(e: MouseEvent | PointerEvent): void {
   const clickVal = engine.getClickValue(state, market.getClickMultiplier());
   state = engine.click(state, market.getClickMultiplier());
@@ -372,14 +370,8 @@ function handleClick(e: MouseEvent | PointerEvent): void {
   hints.dismiss('first-click');
 }
 
-// Bouton clic principal (desktop)
 btnClick.addEventListener('click', (e) => {
   spawnRipple(e);
-  handleClick(e);
-});
-
-// FAB clic (mobile portrait)
-btnClickFab.addEventListener('click', (e) => {
   handleClick(e);
 });
 
@@ -610,11 +602,9 @@ function updateEchoUI(): void {
 let ghostClickTimeout: ReturnType<typeof setTimeout> | null = null;
 function triggerGhostClick(): void {
   btnClick.classList.add('ghost-clicking');
-  btnClickFab.classList.add('ghost-clicking');
   if (ghostClickTimeout) clearTimeout(ghostClickTimeout);
   ghostClickTimeout = setTimeout(() => {
     btnClick.classList.remove('ghost-clicking');
-    btnClickFab.classList.remove('ghost-clicking');
   }, 300);
 }
 

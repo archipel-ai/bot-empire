@@ -54,16 +54,14 @@
       <span id="market-banner-timer" class="market-banner-timer"></span>
     </div>
 
-    <!-- MAIN -->
+    <!-- MAIN : la scène du bureau d'abord, les onglets ensuite -->
     <main id="main">
 
-      <!-- LEFT — Actions + Stats -->
-      <aside id="panel-left">
-
-        <!-- BUREAU VIRTUEL -->
+      <!-- SCÈNE — le bureau et le bouton de travail -->
+      <section id="stage" aria-labelledby="bureau-title">
         <div id="bureau" class="stage-chambre">
           <div class="bureau-header">
-            <span class="bureau-title" data-i18n="bureau.title">BUREAU VIRTUEL</span>
+            <span class="bureau-title" id="bureau-title" data-i18n="bureau.title">BUREAU VIRTUEL</span>
             <span class="bureau-count" id="bureau-count">0 agents</span>
           </div>
           <div class="bureau-floor"></div>
@@ -79,131 +77,144 @@
           </div>
         </div>
 
-        <div id="click-zone">
-          <button id="btn-click" class="btn-click">
-            <span class="btn-click-icon">⚡</span>
-            <span class="btn-click-label" data-i18n="click.label">Exécuter une tâche</span>
-            <span class="btn-click-value" id="click-value-display">+€1.00</span>
-          </button>
-          <div class="click-ripple" id="click-ripple"></div>
-        </div>
+        <div class="stage-actions">
+          <div id="click-zone">
+            <button id="btn-click" class="btn-click" type="button">
+              <span class="btn-click-icon">⚡</span>
+              <span class="btn-click-label" data-i18n="click.label">Exécuter une tâche</span>
+              <span class="btn-click-value" id="click-value-display">+€1.00</span>
+            </button>
+          </div>
 
-        <!-- ÉCHO -->
-        <div id="echo-zone">
-          <button id="btn-echo" class="btn-echo" disabled>
-            <span class="echo-icon">↺</span>
-            <div class="echo-text">
-              <span class="echo-label" data-i18n="echo.label">MODE ÉCHO</span>
-              <span class="echo-sub" id="echo-sub"></span>
+          <!-- ÉCHO -->
+          <div id="echo-zone">
+            <button id="btn-echo" class="btn-echo" type="button" disabled>
+              <span class="echo-icon">↺</span>
+              <div class="echo-text">
+                <span class="echo-label" data-i18n="echo.label">MODE ÉCHO</span>
+                <span class="echo-sub" id="echo-sub"></span>
+              </div>
+            </button>
+            <div class="echo-bar-wrap" id="echo-bar-wrap" style="display:none">
+              <div class="echo-bar-track">
+                <div class="echo-bar-fill" id="echo-bar-fill"></div>
+              </div>
+              <span class="echo-timer-label" id="echo-timer-label">60s</span>
             </div>
-          </button>
-          <div class="echo-bar-wrap" id="echo-bar-wrap" style="display:none">
-            <div class="echo-bar-track">
-              <div class="echo-bar-fill" id="echo-bar-fill"></div>
-            </div>
-            <span class="echo-timer-label" id="echo-timer-label">60s</span>
           </div>
         </div>
+      </section>
 
-        <div class="stats-card">
-          <div class="stats-title" data-i18n="stats.title">TABLEAU DE BORD</div>
-          <div class="stat-row">
-            <span class="stat-label" data-i18n="stats.agents">Agents actifs</span>
-            <span class="stat-value" id="stat-agents">0</span>
-          </div>
-          <div class="stat-row">
-            <span class="stat-label" data-i18n="stats.clients">Contrats signés</span>
-            <span class="stat-value" id="stat-clients">0</span>
-          </div>
-          <div class="stat-row">
-            <span class="stat-label" data-i18n="stats.upgrades">Upgrades achetés</span>
-            <span class="stat-value" id="stat-upgrades">0</span>
-          </div>
-          <div class="stat-row">
-            <span class="stat-label" data-i18n="stats.multiplier">Multiplicateur</span>
-            <span class="stat-value accent-purple" id="stat-multiplier">×1.00</span>
-          </div>
-          <div class="stat-row">
-            <span class="stat-label" data-i18n="stats.offline">Production offline</span>
-            <span class="stat-value accent-green" id="stat-offline">—</span>
-          </div>
-        </div>
-
-        <!-- SAUVEGARDE -->
-        <div class="save-actions">
-          <button id="btn-share" class="btn-save-action btn-share-action" title="Partager mon agence" data-i18n="save.share" data-i18n-title="save.shareTitle">
-            🔗 Partager
-          </button>
-          <button id="btn-export" class="btn-save-action" title="Exporter la sauvegarde" data-i18n="save.export" data-i18n-title="save.exportTitle">
-            💾 Exporter
-          </button>
-          <label id="btn-import-label" class="btn-save-action" title="Importer une sauvegarde" data-i18n-title="save.importTitle">
-            <span data-i18n="save.import">📂 Importer</span>
-            <input type="file" id="btn-import" accept=".json" style="display:none" />
-          </label>
-        </div>
-
-        <div id="prestige-card" class="prestige-card">
-          <div class="prestige-card-title" data-i18n="prestige.cardTitle">VENDRE L'AGENCE</div>
-          <div class="prestige-progress-wrap">
-            <div class="prestige-progress-bar">
-              <div id="prestige-bar-fill" class="prestige-bar-fill" style="width:0%"></div>
-            </div>
-            <span id="prestige-pct">0%</span>
-          </div>
-          <div class="prestige-target" id="prestige-target">Objectif : €10.00M</div>
-          <button id="btn-prestige" class="btn-prestige" disabled data-i18n="prestige.button">
-            Vendre l'Agence (+15% permanent)
-          </button>
-        </div>
-      </aside>
-
-      <!-- RIGHT — Tabs -->
-      <section id="panel-right">
-        <nav class="tabs">
-          <button class="tab active" data-tab="agents">
-            <span>🤖</span> <span data-i18n="tab.agents">Agents</span>
+      <!-- PANNEAU D'ONGLETS — à droite sur ordinateur, tiroir en bas sur téléphone -->
+      <section id="panel" aria-label="Onglets" data-i18n-aria="panel.label">
+        <button id="drawer-handle" class="drawer-handle" type="button" aria-expanded="false" aria-controls="panel" data-i18n-aria="panel.expand" aria-label="Agrandir le panneau">
+          <span class="drawer-grip"></span>
+        </button>
+        <nav class="tabs" role="tablist">
+          <button class="tab active" data-tab="agents" type="button">
+            <span class="tab-icon">🤖</span> <span data-i18n="tab.agents">Agents</span>
             <span class="tab-count" id="tab-count-agents">0</span>
           </button>
-          <button class="tab" data-tab="clients">
-            <span>🤝</span> <span data-i18n="tab.clients">Clients</span>
+          <button class="tab" data-tab="clients" type="button">
+            <span class="tab-icon">🤝</span> <span data-i18n="tab.clients">Clients</span>
             <span class="tab-count" id="tab-count-clients">0</span>
           </button>
-          <button class="tab" data-tab="upgrades">
-            <span>⚙️</span> <span data-i18n="tab.upgrades">Upgrades</span>
+          <button class="tab" data-tab="upgrades" type="button">
+            <span class="tab-icon">⚙️</span> <span data-i18n="tab.upgrades">Upgrades</span>
             <span class="tab-count" id="tab-count-upgrades">0</span>
           </button>
-          <button class="tab" data-tab="contracts">
-            <span>📋</span> <span data-i18n="tab.contracts">Contrats</span>
+          <button class="tab" data-tab="contracts" type="button">
+            <span class="tab-icon">📋</span> <span data-i18n="tab.contracts">Contrats</span>
             <span class="tab-count tab-count-pulse" id="tab-count-contracts">0</span>
           </button>
-          <button class="tab" data-tab="reputation">
-            <span>⭐</span> <span data-i18n="tab.reputation">Réputation</span>
+          <button class="tab" data-tab="reputation" type="button">
+            <span class="tab-icon">⭐</span> <span data-i18n="tab.reputation">Réputation</span>
             <span class="tab-count" id="tab-count-reputation">0</span>
           </button>
-          <button class="tab" data-tab="academy">
-            <span>🎓</span> <span data-i18n="tab.academy">Academy</span>
+          <button class="tab" data-tab="academy" type="button">
+            <span class="tab-icon">🎓</span> <span data-i18n="tab.academy">Academy</span>
             <span class="tab-count tab-count-pulse" id="tab-count-academy">0</span>
+          </button>
+          <button class="tab" data-tab="agency" type="button">
+            <span class="tab-icon">🏢</span> <span data-i18n="tab.agency">Agence</span>
+            <span class="tab-count" id="tab-count-agency">0%</span>
           </button>
         </nav>
 
-        <div id="tab-agents" class="tab-content active">
-          <!-- Injecté par Renderer -->
-        </div>
-        <div id="tab-clients" class="tab-content">
-          <!-- Injecté par Renderer -->
-        </div>
-        <div id="tab-upgrades" class="tab-content">
-          <!-- Injecté par Renderer -->
-        </div>
-        <div id="tab-contracts" class="tab-content">
-          <!-- Injecté par ContractSystem -->
-        </div>
-        <div id="tab-reputation" class="tab-content">
-          <!-- Injecté par main.ts -->
-        </div>
-        <div id="tab-academy" class="tab-content">
-          <!-- Injecté par main.ts -->
+        <div class="tab-panels">
+          <div id="tab-agents" class="tab-content active">
+            <!-- Injecté par Renderer -->
+          </div>
+          <div id="tab-clients" class="tab-content">
+            <!-- Injecté par Renderer -->
+          </div>
+          <div id="tab-upgrades" class="tab-content">
+            <!-- Injecté par Renderer -->
+          </div>
+          <div id="tab-contracts" class="tab-content">
+            <!-- Injecté par ContractSystem -->
+          </div>
+          <div id="tab-reputation" class="tab-content">
+            <!-- Injecté par main.ts -->
+          </div>
+          <div id="tab-academy" class="tab-content">
+            <!-- Injecté par main.ts -->
+          </div>
+
+          <!-- AGENCE : prestige, tableau de bord, sauvegarde -->
+          <div id="tab-agency" class="tab-content">
+            <div id="prestige-card" class="prestige-card">
+              <div class="prestige-card-title" data-i18n="prestige.cardTitle">VENDRE L'AGENCE</div>
+              <div class="prestige-progress-wrap">
+                <div class="prestige-progress-bar">
+                  <div id="prestige-bar-fill" class="prestige-bar-fill" style="width:0%"></div>
+                </div>
+                <span id="prestige-pct">0%</span>
+              </div>
+              <div class="prestige-target" id="prestige-target">Objectif : €10.00M</div>
+              <button id="btn-prestige" class="btn-prestige" type="button" disabled data-i18n="prestige.button">
+                Vendre l'Agence (+15% permanent)
+              </button>
+            </div>
+
+            <div class="stats-card">
+              <div class="stats-title" data-i18n="stats.title">TABLEAU DE BORD</div>
+              <div class="stat-row">
+                <span class="stat-label" data-i18n="stats.agents">Agents actifs</span>
+                <span class="stat-value" id="stat-agents">0</span>
+              </div>
+              <div class="stat-row">
+                <span class="stat-label" data-i18n="stats.clients">Contrats signés</span>
+                <span class="stat-value" id="stat-clients">0</span>
+              </div>
+              <div class="stat-row">
+                <span class="stat-label" data-i18n="stats.upgrades">Upgrades achetés</span>
+                <span class="stat-value" id="stat-upgrades">0</span>
+              </div>
+              <div class="stat-row">
+                <span class="stat-label" data-i18n="stats.multiplier">Multiplicateur</span>
+                <span class="stat-value accent-purple" id="stat-multiplier">×1.00</span>
+              </div>
+              <div class="stat-row">
+                <span class="stat-label" data-i18n="stats.offline">Production offline</span>
+                <span class="stat-value accent-green" id="stat-offline">—</span>
+              </div>
+            </div>
+
+            <!-- SAUVEGARDE -->
+            <div class="save-actions">
+              <button id="btn-share" class="btn-save-action btn-share-action" type="button" title="Partager mon agence" data-i18n="save.share" data-i18n-title="save.shareTitle">
+                🔗 Partager
+              </button>
+              <button id="btn-export" class="btn-save-action" type="button" title="Exporter la sauvegarde" data-i18n="save.export" data-i18n-title="save.exportTitle">
+                💾 Exporter
+              </button>
+              <label id="btn-import-label" class="btn-save-action" title="Importer une sauvegarde" data-i18n-title="save.importTitle">
+                <span data-i18n="save.import">📂 Importer</span>
+                <input type="file" id="btn-import" accept=".json" style="display:none" />
+              </label>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -308,11 +319,6 @@
       </div>
     </div>
 
-    <!-- FAB CLIC (mobile uniquement) -->
-    <button id="click-fab" class="click-fab" aria-label="Exécuter une tâche" data-i18n-aria="click.label">
-      <span class="click-fab-icon">⚡</span>
-      <span class="click-fab-value" id="click-fab-value">+€1.00</span>
-    </button>
 
   </div>
   <script type="module" src="/src/main.ts"></script>

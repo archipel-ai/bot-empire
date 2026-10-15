@@ -35,6 +35,7 @@ export class Renderer {
   private elTabCountAgents = document.getElementById('tab-count-agents')!;
   private elTabCountClients = document.getElementById('tab-count-clients')!;
   private elTabCountUpgrades = document.getElementById('tab-count-upgrades')!;
+  private elTabCountAgency = document.getElementById('tab-count-agency')!;
 
   // Tab content panels
   private elTabAgents = document.getElementById('tab-agents')!;
@@ -84,6 +85,8 @@ export class Renderer {
     const threshold = this.engine.getPrestigeThreshold(state);
     this.elPrestigeBar.style.width = `${pct}%`;
     this.elPrestigePct.textContent = `${pct}%`;
+    this.elTabCountAgency.textContent = `${pct}%`;
+    this.elTabCountAgency.classList.toggle('ready', canPrestige);
     this.elPrestigeTarget.textContent = t('prestige.target', { amount: formatCurrency(threshold) });
     this.elBtnPrestige.disabled = !canPrestige;
 

@@ -17,7 +17,7 @@ interface HintDef {
 const HINTS: Record<HintId, HintDef> = {
   'first-click': {
     text:    'hint.firstClick',
-    targets: ['#click-fab', '#btn-click'],
+    targets: ['#btn-click'],
   },
   'first-agent': {
     text:    'hint.firstAgent',
