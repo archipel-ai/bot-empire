@@ -1105,67 +1105,53 @@ body {
   animation: prestige-flash 1.2s ease-out forwards !important;
 }
 
-/* ===== TUTORIAL ===== */
-#tutorial-overlay {
-  background: rgba(0,0,0,0.6);
-  backdrop-filter: blur(2px);
-  pointer-events: none; /* laisse le jeu interactif dessous */
-  z-index: 600;
-}
-.tuto-card {
-  pointer-events: all;
+/* ===== BULLES D'AIDE (non bloquantes) ===== */
+.hint-bubble {
+  position: fixed;
+  z-index: 250; /* sous les modales (300), au-dessus du FAB et des notifs */
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
   background: var(--bg-card);
   border: 1px solid var(--accent-green);
-  border-radius: var(--radius-lg);
-  padding: 20px;
-  box-shadow: 0 0 24px rgba(0,255,136,0.2), 0 16px 40px rgba(0,0,0,0.6);
-  z-index: 610;
-  max-width: 320px;
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-primary);
+  box-shadow: 0 0 18px rgba(0,255,136,0.2), 0 10px 24px rgba(0,0,0,0.5);
+  animation: slideIn 0.2s ease;
 }
-.tuto-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 12px;
+.hint-bubble::after {
+  content: '';
+  position: absolute;
+  left: var(--arrow-x, 50%);
+  bottom: -6px;
+  width: 10px;
+  height: 10px;
+  background: var(--bg-card);
+  border-right: 1px solid var(--accent-green);
+  border-bottom: 1px solid var(--accent-green);
+  transform: translateX(-50%) rotate(45deg);
 }
-.tuto-step {
-  font-family: 'Space Mono', monospace;
-  font-size: 10px;
-  color: var(--accent-green);
-  letter-spacing: .08em;
+.hint-bubble.below::after {
+  bottom: auto;
+  top: -6px;
+  transform: translateX(-50%) rotate(225deg);
 }
-.tuto-skip {
+.hint-text { flex: 1; }
+.hint-close {
   background: transparent;
   border: none;
   color: var(--text-muted);
-  font-size: 11px;
+  font-size: 18px;
+  line-height: 1;
   cursor: pointer;
-  padding: 2px 6px;
+  padding: 0 2px;
+  min-width: 24px;
+  min-height: 24px;
 }
-.tuto-skip:hover { color: var(--text-secondary); }
-.tuto-title {
-  font-size: 15px;
-  font-weight: 700;
-  margin-bottom: 8px;
-  color: var(--text-primary);
-}
-.tuto-text {
-  font-size: 13px;
-  color: var(--text-secondary);
-  line-height: 1.6;
-  margin-bottom: 16px;
-}
-.tuto-next-btn { width: 100%; }
-
-/* Highlight tutorial target */
-.tuto-hl {
-  outline: 2px solid var(--accent-green) !important;
-  outline-offset: 3px !important;
-  box-shadow: 0 0 0 4px rgba(0,255,136,0.15) !important;
-  border-radius: var(--radius) !important;
-  z-index: 301 !important;
-  position: relative !important;
-}
+.hint-close:hover { color: var(--text-primary); }
 
 /* ===== SAVE ACTIONS ===== */
 .save-actions {

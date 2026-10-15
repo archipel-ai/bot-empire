@@ -7,7 +7,7 @@ import { REPUTATION_PERKS, getPrestigeRP } from '../config/reputationPerks.ts';
 const PRESTIGE_BASE           = 750_000;
 const PRESTIGE_SCALE          = 2.0;  // ×2 par prestige
 const PRESTIGE_BONUS_PER_LEVEL = 0.15;
-const BASE_CLICK_VALUE         = 0.1;
+const BASE_CLICK_VALUE         = 1;  // 10 clics pour le premier agent (10 €)
 const MAX_OFFLINE_HOURS        = 8;
 
 export interface TickResult {

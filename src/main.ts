@@ -13,7 +13,7 @@ import { formatCurrency, formatDuration } from './utils/format.ts';
 import { playClick, playPurchase, playClientUnlock, playMilestone, playPrestige } from './utils/audio.ts';
 import { EchoSystem } from './systems/EchoSystem.ts';
 import { IncidentSystem, type IncidentQuestion } from './systems/IncidentSystem.ts';
-import { Tutorial } from './ui/Tutorial.ts';
+import { Hints } from './ui/Hints.ts';
 import { CLIENTS } from './config/clients.ts';
 import { CloudSave } from './core/CloudSave.ts';
 import { FIREBASE_CONFIG, CLOUD_SAVE_ENABLED } from './config/firebase.ts';
@@ -34,7 +34,7 @@ const renderer    = new Renderer(engine);
 const bureau      = new Bureau();
 const echo        = new EchoSystem();
 const incident    = new IncidentSystem();
-const tutorial    = new Tutorial();
+const hints       = new Hints();
 const cloud       = new CloudSave();
 const contractSys = new ContractSystem();
 const market      = new MarketSystem();
@@ -157,7 +157,7 @@ contractSys.init(
 // Un seul overlay visible à la fois — file d'attente FIFO
 
 const OVERLAY_IDS = [
-  'offline-overlay', 'import-url-overlay', 'tutorial-overlay',
+  'offline-overlay', 'import-url-overlay',
   'incident-overlay', 'prestige-overlay', 'share-overlay',
 ];
 const overlayQueue: Array<() => void> = [];
@@ -191,7 +191,7 @@ bureau.onStageChange = (stage) => {
 };
 
 // ─── SÉQUENCE DE DÉMARRAGE ───────────────────────────────────
-// Ordre : offline → URL import → tutorial (jamais en simultané)
+// Ordre : offline → URL import (jamais en simultané). Les bulles d'aide ne bloquent rien.
 
 // 1. Offline earnings
 const offlineSeconds = saveSystem.getOfflineSeconds(state);
@@ -204,7 +204,7 @@ if (offlineSeconds > 10) {
   });
 }
 
-// 2. URL import ou tutorial (après offline)
+// 2. URL import (après offline)
 const urlState = saveSystem.decodeFromURL();
 if (urlState) {
   const totalAgents = Object.values(urlState.agents).reduce((s, a) => s + a.count, 0);
@@ -218,9 +218,10 @@ if (urlState) {
       <div class="import-stat-row"><span>Prestiges</span><span>${urlState.prestigeCount}</span></div>
     `;
   });
-} else if (tutorial.shouldStart()) {
-  openModal('tutorial-overlay', () => tutorial.start());
 }
+
+// 3. Bulle d'aide : premier clic (nouvelle partie uniquement)
+if (state.totalEarned === 0 && state.prestigeCount === 0) hints.show('first-click');
 
 // ─── CLOUD SAVE INIT ─────────────────────────────────────────
 if (CLOUD_SAVE_ENABLED) {
@@ -261,6 +262,7 @@ if (milestoneIdx === -1) milestoneIdx = MILESTONES.length;
 // ─── GAME LOOP ───────────────────────────────────────────────
 
 const TICK_MS = 100;
+const HINT_CLIENT_AUTOHIDE_MS = 12_000;
 let accumulator = 0;
 let lastTimestamp = 0;
 
@@ -297,7 +299,14 @@ function gameLoop(timestamp: number): void {
       const msg = def?.unlockDialogue ?? `🤝 Nouveau client : ${clientId}`;
       notifyMilestone(msg);
       playClientUnlock();
+      hints.show('first-client', HINT_CLIENT_AUTOHIDE_MS);
     });
+
+    // Bulle d'aide : premier agent achetable
+    if (!hints.isSeen('first-agent') && engine.getTotalAgentCount(state) === 0
+        && engine.canBuyAgent(state, AGENTS[0]!.id)) {
+      hints.show('first-agent');
+    }
 
     // Milestones
     while (milestoneIdx < MILESTONES.length && state.totalEarned >= MILESTONES[milestoneIdx]) {
@@ -330,6 +339,7 @@ function gameLoop(timestamp: number): void {
   renderer.update(state);
   updateEchoUI();
   updateContractProgressBars();
+  hints.reposition();
   // Valeur clic sur le FAB mobile
   elFabValue.textContent = `+${formatCurrency(engine.getClickValue(state, market.getClickMultiplier()))}`;
   requestAnimationFrame(gameLoop);
@@ -347,6 +357,7 @@ function handleClick(e: MouseEvent | PointerEvent): void {
   renderer.markDirty();
   spawnFloatingNumber(clickVal, e.currentTarget as HTMLElement);
   playClick();
+  hints.dismiss('first-click');
 }
 
 // Bouton clic principal (desktop)
@@ -378,6 +389,7 @@ document.getElementById('tab-agents')!.addEventListener('click', (e) => {
     renderer.markDirty();
     notify(`🤖 Agent recruté !`, 'green');
     playPurchase();
+    hints.dismiss('first-agent');
     // Flash achat sur la card
     const card = btn.closest('.agent-card');
     if (card) {
@@ -420,6 +432,7 @@ document.querySelectorAll('.tab').forEach(tab => {
       tabCountContracts.classList.remove('has-new');
       renderContracts();
     }
+    if (target === 'clients') hints.dismiss('first-client');
     if (target === 'reputation') {
       renderReputation();
     }
