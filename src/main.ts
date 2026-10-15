@@ -23,7 +23,7 @@ import { MarketSystem } from './systems/MarketSystem.ts';
 import { AcademySystem } from './systems/AcademySystem.ts';
 import { CHAPTERS, CHALLENGES, getChallengesByChapter, type AcademyChallenge } from './config/academy.ts';
 import { REPUTATION_PERKS } from './config/reputationPerks.ts';
-import { spawnFloatingNumber, spawnPrestigeConfetti, flashScreen, typeText } from './utils/gamefeel.ts';
+import { spawnFloatingNumber, spawnInkLetters, flashScreen, typeText } from './utils/gamefeel.ts';
 import { formatRate } from './utils/format.ts';
 import { AGENTS } from './config/agents.ts';
 import { LANG, setLang, t, translateStaticDom } from './i18n/i18n.ts';
@@ -121,6 +121,8 @@ const echoBarWrap   = document.getElementById('echo-bar-wrap')!;
 const echoBarFill   = document.getElementById('echo-bar-fill')!;
 const echoTimerLbl  = document.getElementById('echo-timer-label')!;
 const btnClick      = document.getElementById('btn-click')    as HTMLButtonElement;
+const elCurrency    = document.getElementById('hd-currency')!;
+const CLICK_LETTERS_MIN = 3; // 3 à 5 lettres s'envolent à chaque clic
 
 let state = saveSystem.load();
 
@@ -200,8 +202,8 @@ function closeModal(id: string): void {
 }
 
 // Stage change callback
-bureau.onStageChange = (stage) => {
-  notify(t('bureau.newStage', { icon: stage.icon, label: stage.label, sublabel: stage.sublabel }), 'orange');
+// Étape franchie : le bureau affiche son bandeau, on joue l'accord
+bureau.onStageChange = () => {
   playMilestone();
 };
 
@@ -313,6 +315,7 @@ function gameLoop(timestamp: number): void {
       const def = CLIENTS.find(c => c.id === clientId);
       const msg = def?.unlockDialogue ?? t('client.new', { name: clientId });
       notifyMilestone(msg);
+      bureau.stamp(def?.name ?? clientId);
       playClientUnlock();
       hints.show('first-client', HINT_CLIENT_AUTOHIDE_MS);
     });
@@ -361,11 +364,10 @@ requestAnimationFrame(gameLoop);
 
 // Bouton de travail
 function handleClick(e: MouseEvent | PointerEvent): void {
-  const clickVal = engine.getClickValue(state, market.getClickMultiplier());
   state = engine.click(state, market.getClickMultiplier());
   echo.recordClick();
   renderer.markDirty();
-  spawnFloatingNumber(clickVal, e.currentTarget as HTMLElement);
+  spawnInkLetters(e.currentTarget as HTMLElement, elCurrency, CLICK_LETTERS_MIN + Math.floor(Math.random() * 3));
   playClick();
   hints.dismiss('first-click');
 }
@@ -393,6 +395,7 @@ document.getElementById('tab-agents')!.addEventListener('click', (e) => {
     renderer.markDirty();
     notify(t('agent.recruited'), 'green');
     playPurchase();
+    bureau.celebratePurchase(agentId);
     hints.dismiss('first-agent');
     // Flash achat sur la card
     const card = btn.closest('.agent-card');
@@ -469,7 +472,7 @@ document.getElementById('btn-prestige-confirm')!.addEventListener('click', () =>
   renderer.markDirty();
   closeModal('prestige-overlay');
   playPrestige();
-  spawnPrestigeConfetti();
+  bureau.playPrestige();
   flashScreen('ambre', 12);
   notify(t('prestige.done', { rp: rpGained }), 'purple');
   renderReputation();

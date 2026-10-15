@@ -6,6 +6,8 @@ import { UPGRADES } from '../config/upgrades.ts';
 import { formatCurrency, formatRate } from '../utils/format.ts';
 import { t } from '../i18n/i18n.ts';
 
+const COUNTER_RATE = 9; // 1/s : vitesse de rattrapage des compteurs
+
 export class Renderer {
   private engine: GameEngine;
   private agentsPanelDirty = true;
@@ -42,8 +44,24 @@ export class Renderer {
   private elTabClients = document.getElementById('tab-clients')!;
   private elTabUpgrades = document.getElementById('tab-upgrades')!;
 
+  // Compteurs affichés en défilement (tween) vers leur valeur réelle
+  private shownCurrency = -1;
+  private shownRate = -1;
+  private lastFrame = 0;
+  private reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+
   constructor(engine: GameEngine) {
     this.engine = engine;
+  }
+
+  /**
+   * Fait grimper une valeur affichée vers sa cible : rapide quand l'écart est grand,
+   * immédiat à la baisse (un achat se voit tout de suite) ou avec prefers-reduced-motion.
+   */
+  private tween(shown: number, target: number, dt: number): number {
+    if (shown < 0 || target < shown || this.reducedMotion.matches) return target;
+    const next = shown + (target - shown) * (1 - Math.exp(-dt * COUNTER_RATE));
+    return target - next < Math.max(0.005, target * 1e-6) ? target : next;
   }
 
   markDirty(): void {
@@ -63,9 +81,14 @@ export class Renderer {
     const progress = this.engine.getPrestigeProgress(state);
     const canPrestige = this.engine.canPrestige(state);
 
-    // Header
-    this.elCurrency.textContent = formatCurrency(state.currency);
-    this.elRate.textContent = formatRate(rate);
+    // Header (compteurs en défilement)
+    const now = performance.now();
+    const dt = this.lastFrame ? Math.min((now - this.lastFrame) / 1000, 0.25) : 0;
+    this.lastFrame = now;
+    this.shownCurrency = this.tween(this.shownCurrency, state.currency, dt);
+    this.shownRate = this.tween(this.shownRate, rate, dt);
+    this.elCurrency.textContent = formatCurrency(this.shownCurrency);
+    this.elRate.textContent = formatRate(this.shownRate);
     this.elTotal.textContent = formatCurrency(state.totalEarned);
 
     if (state.prestigeCount > 0) {

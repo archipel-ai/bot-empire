@@ -1,5 +1,6 @@
 import { GameState } from '../core/GameState.ts';
 import { AGENTS } from '../config/agents.ts';
+import { CLIENTS } from '../config/clients.ts';
 import { t } from '../i18n/i18n.ts';
 import { PHONE_QUERY } from './Drawer.ts';
 
@@ -76,6 +77,15 @@ const SHEET_GAP_MIN  = 2.2;           // s entre deux nouvelles feuilles
 const SHEET_GAP_MAX  = 4.8;
 const TOUCH_TIP_MS   = 2600;
 const MAX_DT         = 0.05;
+const BURST_LETTERS  = 9;             // lettres qui convergent vers le socle à l'achat
+const BOUNCE_TIME    = 0.45;          // s
+const STAMP_IN       = 0.22;          // s : le tampon s'abat
+const STAMP_HOLD     = 1.3;
+const STAMP_OUT      = 0.8;
+const BANNER_MS      = 2800;
+const INK_IN         = 1.3;           // s : la dalle se vide en encre (prestige)
+const INK_OUT        = 1.7;           // s : puis renaît
+const REBIRTH_EXTENT = 0.6;
 
 // ─── TYPES ────────────────────────────────────────────────────
 
@@ -91,8 +101,14 @@ interface Sheet {
   flights: Flight[];
 }
 
+interface Burst { ch: string; t: number; dx: number; dy: number; }
+
+interface Stamp { label: string; t: number; }
+
 interface Post {
   id:      string;
+  bursts:  Burst[];
+  bounce:  number;
   name:    string;
   gx:      number;
   gy:      number;
@@ -160,6 +176,14 @@ export class Bureau {
   private totalAgents = 0;
   private hovered: string | null = null;
   private touchTimer: ReturnType<typeof setTimeout> | null = null;
+  private dpr = 1;
+  private clients: string[] = [];        // noms des clients signés, dans l'ordre
+  private freshClient = '';              // dernier signé (étiquette en ambre)
+  private freshTimer = 0;
+  private stampState: Stamp | null = null;
+  private ink = -1;                      // temps de l'animation de prestige (< 0 : aucune)
+  private banner = document.createElement('div');
+  private bannerTimer: ReturnType<typeof setTimeout> | null = null;
 
   // Couleurs résolues depuis les jetons CSS
   private C: Record<keyof Palette, Rgb>;
@@ -190,7 +214,7 @@ export class Bureau {
       const source = (AGENT_LINES[def.id] ?? [def.name]).join('').replace(/\s+/g, '');
       return {
         id: def.id, name: def.name, gx: cx * CELL, gy: cy * CELL, count: 0,
-        letters: [], source, sheet: null, sx: 0, sy: 0, top: 0,
+        letters: [], source, sheet: null, sx: 0, sy: 0, top: 0, bursts: [], bounce: 0,
       };
     });
 
@@ -200,6 +224,9 @@ export class Bureau {
     this.tooltip.setAttribute('aria-hidden', 'true');
     this.bureauEl.prepend(this.canvas);
     this.bureauEl.appendChild(this.tooltip);
+    this.banner.className = 'bureau-banner hidden';
+    this.banner.setAttribute('role', 'status');
+    this.bureauEl.appendChild(this.banner);
 
     new ResizeObserver(() => this.resize()).observe(this.bureauEl);
     this.resize();
@@ -219,9 +246,59 @@ export class Bureau {
     this.draw();
   }
 
+  // ─── EFFETS DÉCLENCHÉS PAR LE JEU ───────────────────────────
+
+  /** Achat d'agents : des lettres convergent vers le socle, qui rebondit. */
+  celebratePurchase(agentId: string): void {
+    const post = this.posts.find(p => p.id === agentId);
+    if (!post || this.reduced.matches) return;
+    post.bounce = BOUNCE_TIME;
+    for (let i = 0; i < BURST_LETTERS; i++) {
+      const a = (i / BURST_LETTERS) * Math.PI * 2 + Math.random() * 0.5;
+      post.bursts.push({
+        ch: post.source[Math.floor(Math.random() * post.source.length)] ?? '·',
+        t: -Math.random() * 0.25,
+        dx: Math.cos(a) * (1.4 + Math.random() * 0.8),
+        dy: Math.sin(a) * (0.9 + Math.random() * 0.6) - 0.6,
+      });
+    }
+  }
+
+  /** Client signé : tampon « SIGNÉ » sur la scène, puis étiquette sur la dalle. */
+  stamp(clientName: string): void {
+    this.freshClient = clientName;
+    this.freshTimer = 6;
+    this.stampState = { label: t('bureau.signed'), t: this.reduced.matches ? STAMP_IN : 0 };
+  }
+
+  /** Prestige : la dalle se vide doucement en encre, puis renaît. */
+  playPrestige(): void {
+    if (this.reduced.matches) return;
+    this.ink = 0;
+  }
+
+  private showBanner(stage: BureauStage): void {
+    this.banner.innerHTML = '<span class="bureau-banner-kicker"></span><strong></strong><span class="bureau-banner-sub"></span>';
+    this.banner.querySelector('.bureau-banner-kicker')!.textContent = t('bureau.newSpace');
+    this.banner.querySelector('strong')!.textContent = stage.label;
+    this.banner.querySelector('.bureau-banner-sub')!.textContent = stage.sublabel;
+    this.banner.classList.remove('hidden', 'leaving');
+    if (this.bannerTimer) clearTimeout(this.bannerTimer);
+    this.bannerTimer = setTimeout(() => {
+      this.banner.classList.add('leaving');
+      this.bannerTimer = setTimeout(() => this.banner.classList.add('hidden'), 400);
+    }, BANNER_MS);
+  }
+
   // ─── ÉTAT ───────────────────────────────────────────────────
 
   private sync(state: GameState): void {
+    // Pendant que l'encre recouvre la dalle, l'ancienne agence reste affichée
+    if (this.ink >= 0 && this.ink < INK_IN) return;
+
+    const signed = CLIENTS.filter(c => state.clientsUnlocked[c.id]).map(c => c.name);
+    if (signed.length !== this.clients.length) this.clients = signed;
+
     let total = 0;
     for (const post of this.posts) {
       const count = state.agents[post.id]?.count ?? 0;
@@ -264,7 +341,8 @@ export class Bureau {
       this.ext = this.extTarget; // premier chargement : pas de transition
       return;
     }
-    // Transition : la caméra recule à partir de la dalle d'avant
+    // Transition : la caméra recule à partir de la dalle d'avant (voir animate), bandeau sobre
+    if (idx > STAGES.findIndex(st => st.id === prev)) this.showBanner(stage);
     if (this.onStageChange) this.onStageChange(stage);
   }
 
@@ -314,6 +392,25 @@ export class Bureau {
       }
     }
 
+    for (const post of this.posts) {
+      if (post.bounce > 0) post.bounce = Math.max(0, post.bounce - dt);
+      if (post.bursts.length) {
+        for (const b of post.bursts) b.t += dt * 1.6;
+        post.bursts = post.bursts.filter(b => b.t < 1);
+      }
+    }
+    if (this.stampState) {
+      this.stampState.t += dt;
+      if (this.stampState.t > STAMP_IN + STAMP_HOLD + STAMP_OUT) this.stampState = null;
+    }
+    if (this.freshTimer > 0) this.freshTimer -= dt;
+    if (this.ink >= 0) {
+      const before = this.ink;
+      this.ink += dt;
+      if (before < INK_IN && this.ink >= INK_IN) this.ext = REBIRTH_EXTENT; // la dalle renaît petite
+      if (this.ink > INK_IN + INK_OUT) this.ink = -1;
+    }
+
     // Feuilles : une nouvelle de temps en temps sur un poste occupé
     this.sheetTimer -= dt;
     const active = this.posts.filter(p => p.sheet).length;
@@ -353,6 +450,7 @@ export class Bureau {
   private resize(): void {
     const r = this.bureauEl.getBoundingClientRect();
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    this.dpr = dpr;
     this.W = Math.round(r.width);
     this.H = Math.round(r.height);
     this.canvas.width  = Math.max(1, Math.round(this.W * dpr));
@@ -390,6 +488,7 @@ export class Bureau {
     if (this.W === 0) return;
     this.frame();
     this.drawSlab();
+    this.drawClientLabels();
 
     const order = [...this.posts].sort((a, b) => (a.gx + a.gy) - (b.gx + b.gy));
     const founderDepth = 0;
@@ -401,7 +500,110 @@ export class Bureau {
     if (!founderDrawn) this.drawFounder();
 
     for (const post of order) this.drawCloud(post);
+    for (const post of order) this.drawBursts(post);
     for (const post of order) this.drawSheet(post);
+    this.drawInk();
+    this.drawStamp();
+  }
+
+  /** Étiquettes des clients signés, couchées sur la dalle le long du bord avant gauche. */
+  private drawClientLabels(): void {
+    if (!this.clients.length) return;
+    const ctx = this.ctx;
+    const e = this.ext;
+    const fs = Math.max(8, Math.min(13, this.S * 0.19));
+    const unit = this.S;
+    let gx = -e + 0.35;
+    let gy = e - 0.3;
+    ctx.save();
+    ctx.font = `500 ${fs}px ${this.mono}`;
+    for (const name of this.clients) {
+      const label = name.toUpperCase();
+      const len = (ctx.measureText(label).width + fs * 1.6) / unit; // en unités de grille
+      if (gx + len > e - 0.2) { gx = -e + 0.35; gy -= 0.42; }
+      const [x, y] = this.iso(gx, gy);
+      // Repère couché sur le sol : x le long de gx, y le long de gy
+      ctx.setTransform(this.dpr * 0.866, this.dpr * 0.5, this.dpr * -0.866, this.dpr * 0.5, x * this.dpr, y * this.dpr);
+      const fresh = name === this.freshClient && this.freshTimer > 0;
+      ctx.fillStyle = fresh ? rgba(this.C.ambre, 1) : rgba(this.C.encre, 0.42);
+      ctx.fillText(label, 0, 0);
+      gx += len;
+    }
+    ctx.restore();
+    ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+  }
+
+  private drawBursts(post: Post): void {
+    if (!post.bursts.length) return;
+    const ctx = this.ctx;
+    const S = this.S;
+    ctx.textAlign = 'center';
+    ctx.font = `500 ${Math.max(8, S * 0.2)}px ${this.mono}`;
+    for (const b of post.bursts) {
+      if (b.t < 0) continue;
+      const e = easeOut(b.t);
+      const x = post.sx + b.dx * S * (1 - e);
+      const y = post.top - S * 0.1 + b.dy * S * (1 - e);
+      ctx.fillStyle = rgba(this.C.outremer, 0.35 + 0.65 * (1 - b.t));
+      ctx.fillText(b.ch, x, y);
+    }
+    ctx.textAlign = 'left';
+  }
+
+  private drawStamp(): void {
+    const st = this.stampState;
+    if (!st) return;
+    const ctx = this.ctx;
+    const k = Math.min(1, st.t / STAMP_IN);
+    const scale = 1 + (1 - easeOut(k)) * 1.4;
+    const out = st.t - STAMP_IN - STAMP_HOLD;
+    const alpha = (out > 0 ? 1 - out / STAMP_OUT : 1) * Math.min(1, k * 1.5);
+    const fs = Math.max(24, Math.min(64, this.W * 0.07));
+    ctx.save();
+    ctx.translate(this.W / 2, this.H * 0.42);
+    ctx.rotate(-0.14);
+    ctx.scale(scale, scale);
+    ctx.globalAlpha = Math.max(0, alpha) * 0.92;
+    ctx.font = `800 ${fs}px ${this.display}`;
+    const w = ctx.measureText(st.label).width + fs * 0.9;
+    const h = fs * 1.35;
+    ctx.strokeStyle = rgba(this.C.ambre, 1);
+    ctx.lineWidth = Math.max(3, fs * 0.08);
+    this.round(-w / 2, -h / 2, w, h, fs * 0.18);
+    ctx.stroke();
+    ctx.lineWidth = Math.max(1, fs * 0.03);
+    this.round(-w / 2 + fs * 0.12, -h / 2 + fs * 0.12, w - fs * 0.24, h - fs * 0.24, fs * 0.12);
+    ctx.stroke();
+    ctx.fillStyle = rgba(this.C.ambre, 1);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(st.label, 0, fs * 0.04);
+    ctx.restore();
+  }
+
+  /** Prestige : une tache d'encre recouvre la dalle depuis le fauteuil, puis se retire. */
+  private drawInk(): void {
+    if (this.ink < 0) return;
+    const ctx = this.ctx;
+    const [cx, cy] = this.iso(0, 0);
+    const maxR = Math.hypot(this.W, this.H);
+    let r: number;
+    let a: number;
+    if (this.ink < INK_IN) {
+      const k = easeOut(this.ink / INK_IN);
+      r = maxR * k;
+      a = 0.88 * k;
+    } else {
+      const k = (this.ink - INK_IN) / INK_OUT;
+      r = maxR;
+      a = 0.88 * (1 - easeOut(k));
+    }
+    const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.max(1, r));
+    g.addColorStop(0, rgba(this.C.encre, a));
+    g.addColorStop(0.75, rgba(this.C.encre, a * 0.85));
+    g.addColorStop(1, rgba(this.C.encre, 0));
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, this.W, this.H);
   }
 
   private poly(points: Array<[number, number]>): void {
@@ -486,7 +688,8 @@ export class Bureau {
   private drawPost(post: Post): void {
     if (post.count <= 0) return;
     const hovered = this.hovered === post.id;
-    const centre = this.block(post.gx, post.gy, POST_HALF, POST_HEIGHT, this.C.socle, this.faceL, this.faceR,
+    const lift = post.bounce > 0 ? Math.sin((1 - post.bounce / BOUNCE_TIME) * Math.PI) * 8 : 0;
+    const centre = this.block(post.gx, post.gy, POST_HALF, POST_HEIGHT + lift, this.C.socle, this.faceL, this.faceR,
       rgba(this.C.outremer, hovered ? 0.95 : 0.5));
     post.sx = centre[0];
     post.sy = centre[1];

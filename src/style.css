@@ -558,7 +558,7 @@ button:focus-visible, label:focus-within, textarea:focus-visible, input:focus-vi
 /* ===== NOTIFICATIONS ===== */
 #notifications {
   position: fixed;
-  top: calc(var(--header-h) + 14px);
+  top: calc(var(--chrome-bottom, var(--header-h)) + 14px);
   left: 30px;
   display: flex;
   flex-direction: column;
@@ -857,6 +857,48 @@ button:focus-visible, label:focus-within, textarea:focus-visible, input:focus-vi
 }
 .bureau-tooltip strong { font-family: var(--display); font-weight: 600; font-size: 13px; }
 .bureau-tooltip span { font-family: var(--mono); font-size: 11px; opacity: .8; }
+
+/* Bandeau d'étape franchie */
+.bureau-banner {
+  position: absolute;
+  left: 50%;
+  top: 18%;
+  transform: translateX(-50%);
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 12px 26px;
+  background: var(--voile);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-top: 1px solid var(--ambre);
+  border-bottom: 1px solid var(--ambre);
+  pointer-events: none;
+  animation: banner-in .5s ease both;
+  text-align: center;
+}
+.bureau-banner.leaving { animation: fadeOut .4s ease forwards; }
+.bureau-banner-kicker { font-family: var(--mono); font-size: 10px; letter-spacing: .16em; text-transform: uppercase; color: var(--ambre); }
+.bureau-banner strong { font-family: var(--display); font-weight: 800; font-size: clamp(20px, 3vw, 30px); letter-spacing: -.03em; }
+.bureau-banner-sub { font-size: 12px; color: var(--encre-pale); }
+@keyframes banner-in {
+  from { opacity: 0; transform: translate(-50%, -8px); }
+  to   { opacity: 1; transform: translate(-50%, 0); }
+}
+
+/* Lettres qui s'envolent du bouton vers le compteur */
+.ink-letter {
+  position: fixed;
+  z-index: 9999;
+  pointer-events: none;
+  font-family: var(--mono);
+  font-weight: 500;
+  font-size: 16px;
+  color: var(--outremer);
+  will-change: transform, opacity;
+}
 
 /* ===== INCIDENTS ===== */
 .modal-incident { max-width: 500px; text-align: left; padding: 24px; }
@@ -1295,7 +1337,7 @@ button:focus-visible, label:focus-within, textarea:focus-visible, input:focus-vi
   .btn-buy, .btn-upgrade, .btn-contract, .btn-rep-buy { min-height: 44px; }
 
   /* Notifications en haut, sous la barre, au-dessus du tiroir */
-  #notifications { top: calc(var(--header-h) + 8px); left: 10px; right: 10px; align-items: center; z-index: 260; }
+  #notifications { top: calc(var(--chrome-bottom, var(--header-h)) + 8px); left: 10px; right: 10px; align-items: center; z-index: 260; }
   .notif { max-width: 100%; }
 
   .modal-incident {

@@ -24,7 +24,8 @@ const fr = {
   'bureau.agentsPl':  '{n} agents',
   'bureau.founder':   'Fondateur',
   'bureau.founderHint': 'Votre fauteuil, au centre',
-  'bureau.newStage':  '{icon} Nouveau bureau : {label} — {sublabel}',
+  'bureau.signed':    'SIGNÉ',
+  'bureau.newSpace':  'Nouvel espace',
 
   // Clic
   'click.label':      'Exécuter une tâche',
@@ -207,7 +208,8 @@ const en: Record<UiKey, string> = {
   'bureau.agentsPl':  '{n} agents',
   'bureau.founder':   'Founder',
   'bureau.founderHint': 'Your chair, at the centre',
-  'bureau.newStage':  '{icon} New office: {label} — {sublabel}',
+  'bureau.signed':    'SIGNED',
+  'bureau.newSpace':  'New space',
 
   'click.label':      'Run a task',
 

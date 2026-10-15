@@ -58,6 +58,9 @@ export class Drawer {
 
   /** Recale le tiroir selon l'état et la taille de l'écran. */
   layout(): void {
+    // Bas de la barre du haut (et du bandeau marché) : les notifications s'affichent dessous
+    const chromeBottom = this.stage.getBoundingClientRect().top;
+    document.documentElement.style.setProperty('--chrome-bottom', `${Math.round(chromeBottom)}px`);
     if (!this.phone.matches) {
       this.panel.style.top = '';
       this.handle.setAttribute('aria-expanded', 'true');
