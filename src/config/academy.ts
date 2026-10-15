@@ -34,7 +34,6 @@ export interface AcademyChapter {
   title:    string;
   subtitle: string;
   icon:     string;
-  color:    string;
   unlockCondition: 'always' | 'after_prestige_1';
 }
 
@@ -47,7 +46,6 @@ export const CHAPTERS: AcademyChapter[] = [
     title:    'La Première Rencontre',
     subtitle: "Découvre ce qu'est vraiment l'IA",
     icon:     '🤖',
-    color:    '#00ff88',
     unlockCondition: 'always',
   },
   {
@@ -56,7 +54,6 @@ export const CHAPTERS: AcademyChapter[] = [
     title:    "L'Art du Prompt",
     subtitle: 'Apprends à parler à l\'IA comme un pro',
     icon:     '⚡',
-    color:    '#38bdf8',
     unlockCondition: 'always',
   },
 ];

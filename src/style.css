@@ -271,11 +271,13 @@ button:focus-visible, label:focus-within, textarea:focus-visible, input:focus-vi
   border-radius: var(--radius-lg);
   color: var(--socle);
   cursor: pointer;
-  padding: 18px 20px;
+  padding: 14px 22px;
+  min-height: 64px;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
+  justify-content: center;
   align-items: center;
-  gap: 4px;
+  gap: 12px;
   transition: transform .12s ease, box-shadow .2s ease, background .2s;
   position: relative;
   overflow: hidden;
@@ -289,7 +291,7 @@ button:focus-visible, label:focus-within, textarea:focus-visible, input:focus-vi
 .btn-click-icon { font-size: 26px; display: inline-flex; }
 .btn-click-label {
   font-family: var(--display);
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 600;
   letter-spacing: -.01em;
 }
@@ -1299,18 +1301,21 @@ button:focus-visible, label:focus-within, textarea:focus-visible, input:focus-vi
   :root { --header-h: 52px; --stage-h: 46dvh; }
 
   #header { padding: 0 12px; gap: 10px; }
-  .logo-text { display: none; }
+  .logo { display: none; }
   .currency-display { gap: 14px; }
   .currency-total { display: none; }
   .currency-display { gap: 12px; }
   .next-client { width: auto; flex: 1; min-width: 70px; }
-  .next-client-top .label { font-size: 9px; letter-spacing: .03em; }
-  .next-client-pct { font-size: 11px; }
+  .next-client { position: relative; }
+  .next-client-top .label { font-size: 9px; letter-spacing: .02em; }
+  .next-client-pct { position: absolute; right: 0; bottom: -4px; font-size: 10px; }
+  .next-client-track { margin-right: 34px; }
   .currency-main .label, .currency-rate .label { letter-spacing: .04em; }
   .currency-main span:not(.label) { font-size: 19px; }
   .currency-rate span:not(.label) { font-size: 13px; }
-  .prestige-badge { padding: 2px 8px; }
-  .prestige-badge .label { display: none; }
+  /* Le multiplicateur reste lisible sur le fauteuil et dans l'onglet Agence */
+  .prestige-badge { display: none !important; }
+  .btn-icon, .btn-lang { min-width: 36px; padding: 4px 6px; }
 
   .market-banner { padding: 6px 12px; gap: 8px; }
   .market-banner-desc { display: none; }
