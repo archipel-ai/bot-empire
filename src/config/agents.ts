@@ -66,7 +66,7 @@ export const AGENTS: AgentDef[] = [
   {
     id: 'agent-supervisor',
     name: 'Agent Supervisor',
-    description: 'Orchestre tous les agents — multiplicateur global ×2',
+    description: 'Orchestre tous les agents à grande échelle',
     icon: '🎯',
     baseCost: 1_000_000,
     baseProduction: 800,      // était 300
