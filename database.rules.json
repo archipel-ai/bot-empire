@@ -5,8 +5,25 @@
         ".read":  "$uid === auth.uid",
         ".write": "$uid === auth.uid",
         "v1": {
-          ".validate": "newData.hasChildren(['currency', 'totalEarned', 'lastSave'])"
-        }
+          ".validate": "newData.hasChildren(['currency', 'totalEarned', 'lastSave'])",
+          "currency":         { ".validate": "newData.isNumber() && newData.val() >= 0" },
+          "totalEarned":      { ".validate": "newData.isNumber() && newData.val() >= 0" },
+          "prestigeCount":    { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() < 10000" },
+          "reputationPoints": { ".validate": "newData.isNumber() && newData.val() >= 0" },
+          "lastSave":         { ".validate": "newData.isNumber()" },
+          "lastCloudSync":    { ".validate": "newData.isNumber()" },
+          "agents": {
+            "$id": {
+              "count": { ".validate": "newData.isNumber() && newData.val() >= 0" },
+              "$other": { ".validate": false }
+            }
+          },
+          "clientsUnlocked":     { "$id": { ".validate": "newData.isBoolean() && $id.length < 40" } },
+          "upgradesPurchased":   { "$id": { ".validate": "newData.isBoolean() && $id.length < 40" } },
+          "reputationPurchased": { "$id": { ".validate": "newData.isBoolean() && $id.length < 40" } },
+          "$other": { ".validate": false }
+        },
+        "$other": { ".validate": false }
       }
     }
   }
