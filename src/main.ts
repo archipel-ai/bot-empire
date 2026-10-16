@@ -406,8 +406,11 @@ document.getElementById('tab-agents')!.addEventListener('click', (e) => {
     renderer.setBuyMode(modeBtn.dataset['buyMode'] as BuyMode);
     return;
   }
-  const btn = (e.target as Element).closest('[data-buy-agent]') as HTMLElement | null;
-  if (!btn) return;
+  // Toute la carte recrute (compteur, nom, prix), pas seulement le bouton
+  const target = e.target as Element;
+  const btn = (target.closest('[data-buy-agent]')
+    ?? target.closest('.agent-card:not(.silhouette)')?.querySelector('[data-buy-agent]')) as HTMLButtonElement | null;
+  if (!btn || btn.disabled) return;
   const agentId = btn.dataset['buyAgent']!;
   const prev = state.agents[agentId]?.count ?? 0;
   const qty = renderer.getBuyQuantity(state, agentId);

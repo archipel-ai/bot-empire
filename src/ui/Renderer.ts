@@ -313,7 +313,8 @@ export class Renderer {
       const btn = card.querySelector('[data-buy-agent]') as HTMLButtonElement | null;
       if (btn) {
         btn.disabled = !revealed || !btnState.canBuy;
-        btn.textContent = btnState.label;
+        // Ne réécrire que si ça change : remplacer le texte sous le curseur peut faire perdre un clic (Safari)
+        if (btn.textContent !== btnState.label) btn.textContent = btnState.label;
         btn.dataset['buyQty'] = String(btnState.qty);
       }
       const countEl = card.querySelector('.agent-count');

@@ -1459,3 +1459,4 @@ button:focus-visible, label:focus-within, textarea:focus-visible, input:focus-vi
   border-radius: calc(var(--radius) + 2px);
 }
 .agent-card.affordable .btn-buy { box-shadow: 0 6px 16px color-mix(in srgb, var(--outremer) 28%, transparent); }
+.agent-card.affordable { cursor: pointer; }
