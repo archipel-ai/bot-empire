@@ -1,6 +1,6 @@
 # Page itch.io — Bot Empire
 
-Matériel prêt à coller. Rien n'est publié tant que le Capitaine n'a pas donné son feu vert.
+Matériel prêt à coller. Rien n'est publié avant le feu vert final.
 
 ## Fiche
 

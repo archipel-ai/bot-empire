@@ -66,15 +66,6 @@
 
 ---
 
-### MOIS 3-4 — Spin-off #1
-
-- [ ] Fork du moteur → **Idle Gala** (boxe)
-- [ ] Swap config : agents = entraîneurs, clients = combattants, prestige = championnat
-- [ ] Assets : logos partenaires gala déjà disponibles
-- [ ] Cross-promo in-game entre les deux titres
-
----
-
 ## Stack Technique Finale
 
 ```
