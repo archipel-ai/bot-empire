@@ -102,12 +102,16 @@ export class ContractSystem {
 
   // ─── ACTIONS ──────────────────────────────────────────────
 
-  canAccept(contract: ActiveContract, state: GameState): boolean {
+  /**
+   * `rate` : production réelle (€/s) calculée par le moteur — la même que celle affichée
+   * dans les exigences du contrat. Sans elle, repli sur l'estimation grossière.
+   */
+  canAccept(contract: ActiveContract, state: GameState, rate?: number): boolean {
     if (contract.status !== 'available') return false;
 
     // Vérifier production €/s
     if (contract.requiresRate) {
-      const rate = this.getTotalRate(state);
+      rate ??= this.getTotalRate(state);
       if (rate < contract.requiresRate) return false;
     }
 

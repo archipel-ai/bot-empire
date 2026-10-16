@@ -844,7 +844,7 @@ function renderContracts(): void {
     const btn = tabContracts.querySelector(`[data-accept="${slot.id}"]`) as HTMLButtonElement | null;
     if (!btn) return;
     btn.addEventListener('click', () => {
-      if (!contractSys.canAccept(slot, state)) return;
+      if (!contractSys.canAccept(slot, state, engine.getTotalRate(state))) return;
       contractSys.accept(slot);
       notify(t('contract.accepted', { time: formatTimeLeft(slot.workTime * 1000).label }), 'green');
       renderContracts();
@@ -864,7 +864,7 @@ function renderContractSlot(slot: ActiveContract | null, i: number): string {
 
   const rarityLabel = t(slot.rarity === 'epic' ? 'contract.epic' : slot.rarity === 'rare' ? 'contract.rare' : 'contract.common');
   const reqs = requirementLabel(slot, state);
-  const canAccept = contractSys.canAccept(slot, state);
+  const canAccept = contractSys.canAccept(slot, state, engine.getTotalRate(state));
   const progress  = contractSys.getProgress(slot);
 
   if (slot.status === 'available') {
