@@ -1442,3 +1442,9 @@ button:focus-visible, label:focus-within, textarea:focus-visible, input:focus-vi
 
 /* Alerte permanente quand le navigateur refuse la sauvegarde */
 .notif.storage-notice { padding: 10px 14px 10px 16px; max-width: 360px; line-height: 1.45; }
+
+/* Très petits téléphones : « PROCHAIN CLIENT » tient en entier */
+@media (max-width: 400px) {
+  #header { gap: 8px; }
+  .next-client-top .label { font-size: 8.5px; letter-spacing: 0; }
+}

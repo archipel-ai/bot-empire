@@ -820,7 +820,7 @@ export class Bureau {
       ctx.fillText(sh.text[i]!, tx + i * charW, ty);
     }
     // Curseur
-    if (sh.typed < sh.text.length || Math.sin(this.time * 6) > 0) {
+    if (sh.typed < sh.text.length || (!this.reduced.matches && Math.sin(this.time * 6) > 0)) {
       ctx.fillStyle = rgba(this.C.outremer, 1);
       ctx.fillRect(tx + sh.typed * charW + 1, ty - fs * 0.85, 2, fs);
     }
