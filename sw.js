@@ -1,8 +1,10 @@
-const CACHE  = 'bot-empire-v3';
+const CACHE  = 'bot-empire-v4';
+// Chemins relatifs à l'emplacement du SW : fonctionne quel que soit le chemin de déploiement
+const SCOPE  = new URL('./', self.location.href).pathname;
 const ASSETS = [
-  '/bot-empire/',
-  '/bot-empire/index.html',
-  '/bot-empire/manifest.json',
+  './',
+  './index.html',
+  './manifest.json',
 ];
 
 self.addEventListener('install', e => {
@@ -37,7 +39,7 @@ self.addEventListener('fetch', e => {
   }
 
   // index.html — network-first pour toujours avoir la dernière version
-  if (url.pathname === '/bot-empire/' || url.pathname === '/bot-empire/index.html') {
+  if (url.pathname === SCOPE || url.pathname === `${SCOPE}index.html`) {
     e.respondWith(
       fetch(e.request)
         .then(res => {
