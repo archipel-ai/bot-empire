@@ -1448,3 +1448,14 @@ button:focus-visible, label:focus-within, textarea:focus-visible, input:focus-vi
   #header { gap: 8px; }
   .next-client-top .label { font-size: 8.5px; letter-spacing: 0; }
 }
+
+/* Le bouton d'achat est l'action principale de la carte : il doit peser autant qu'elle */
+.agent-card .btn-buy, .upgrade-card .btn-upgrade {
+  min-width: 116px;
+  min-height: 44px;
+  padding: 10px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  border-radius: calc(var(--radius) + 2px);
+}
+.agent-card.affordable .btn-buy { box-shadow: 0 6px 16px color-mix(in srgb, var(--outremer) 28%, transparent); }
