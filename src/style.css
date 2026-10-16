@@ -1460,3 +1460,24 @@ button:focus-visible, label:focus-within, textarea:focus-visible, input:focus-vi
 }
 .agent-card.affordable .btn-buy { box-shadow: 0 6px 16px color-mix(in srgb, var(--outremer) 28%, transparent); }
 .agent-card.affordable { cursor: pointer; }
+
+/* Petite fenêtre paysage (iframe itch.io 640×360, petit portable) : la scène est étroite.
+   Le bouton de travail garde toute la place, l'écho se réduit à une pastille. */
+#stage { container-type: inline-size; container-name: stage; }
+@container stage (max-width: 520px) {
+  .stage-actions { grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
+  .btn-click { padding: 10px 14px; min-height: 52px; gap: 8px; border-radius: 999px; }
+  .btn-click-icon { display: none; }
+  .btn-click-label { font-size: 15px; white-space: nowrap; }
+  .btn-click-value { font-size: 12px; }
+  .btn-echo { padding: 0 14px; min-height: 52px; border-radius: 999px; }
+  .echo-sub, .echo-timer-label { display: none; }
+}
+@media (min-width: 640px) and (max-width: 899px) and (orientation: landscape) {
+  .currency-display { gap: 16px; }
+  .currency-total { display: none; }
+  .logo span, .logo-text { font-size: 16px; }
+}
+@media (orientation: landscape) and (max-height: 420px) {
+  #stage { padding: 10px; gap: 8px; }
+}
