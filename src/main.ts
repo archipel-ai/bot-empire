@@ -54,6 +54,7 @@ const hints       = new Hints();
 new Drawer();
 const cloud       = new CloudSave();
 const contractSys = new ContractSystem();
+contractSys.setRateProvider(s => engine.getTotalRate(s));
 const market      = new MarketSystem();
 const academy     = new AcademySystem();
 

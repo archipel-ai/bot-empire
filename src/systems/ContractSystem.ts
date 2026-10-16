@@ -174,12 +174,16 @@ export class ContractSystem {
     const rate = this.getTotalRate(state);
 
     // Filtrer par accessibilité minimale (éviter d'afficher des contrats impossibles dès le début)
+    // Un contrat n'apparaît que s'il est atteignable bientôt : 10 % de la production demandée,
+    // et au moins un agent du type exigé. Sinon l'emplacement reste vide et réessaie au tick suivant.
     const accessible = pool.filter(c => {
       if (c.requiresRate && rate < c.requiresRate * 0.1) return false;
+      if (c.requiresAgent && (state.agents[c.requiresAgent.id]?.count ?? 0) === 0) return false;
       return true;
     });
+    if (accessible.length === 0) return null;
 
-    const candidates = (accessible.length > 0 ? accessible : pool);
+    const candidates = accessible;
 
     // Pondération rareté
     const weights = candidates.map(c => c.rarity === 'common' ? 55 : c.rarity === 'rare' ? 35 : 10);
@@ -199,9 +203,14 @@ export class ContractSystem {
     this.nextRefill[slotId] = Date.now() + delay;
   }
 
+  /** Le vrai revenu est fourni par main.ts (le moteur n'est pas importé ici, pour éviter un import circulaire). */
+  private rateOf: ((state: GameState) => number) | null = null;
+
+  setRateProvider(fn: (state: GameState) => number): void { this.rateOf = fn; }
+
   private getTotalRate(state: GameState): number {
-    // Import circulaire évité — calcul simplifié
-    return Object.values(state.agents).reduce((sum, a) => sum + a.count * 0.1, 0);
+    if (this.rateOf) return this.rateOf(state);
+    return Object.values(state.agents).reduce((sum, a) => sum + a.count * 0.1, 0); // repli approximatif
   }
 
   /** Les contrats sauvegardés gardent les textes de leur langue d'origine : on les relit depuis la config. */
