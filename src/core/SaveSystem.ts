@@ -1,4 +1,4 @@
-import { GameState, createInitialState } from './GameState.ts';
+import { GameState, createInitialState, sanitizeState } from './GameState.ts';
 
 const SAVE_KEY      = 'bot-empire-v1';
 const PURCHASE_KEY  = 'bot-empire-purchases'; // Jamais exporté — lié à l'appareil
@@ -125,16 +125,7 @@ export class SaveSystem {
 
   // ─── PRIVATE ──────────────────────────────────────────────
 
-  private merge(partial: Partial<GameState>): GameState {
-    const initial = createInitialState();
-    return {
-      ...initial,
-      ...partial,
-      agents:              { ...initial.agents,              ...(partial.agents              ?? {}) },
-      clientsUnlocked:     { ...initial.clientsUnlocked,     ...(partial.clientsUnlocked     ?? {}) },
-      upgradesPurchased:   { ...initial.upgradesPurchased,   ...(partial.upgradesPurchased   ?? {}) },
-      reputationPurchased: { ...initial.reputationPurchased, ...(partial.reputationPurchased ?? {}) },
-      reputationPoints:    partial.reputationPoints ?? 0,
-    };
+  private merge(partial: unknown): GameState {
+    return sanitizeState(partial);
   }
 }
