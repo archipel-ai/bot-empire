@@ -181,6 +181,8 @@ const fr = {
   'incident.solved':   'Incident résolu ! +{reward}',
   'incident.wrong':    'Mauvaise réponse — incident non résolu.',
 
+  'storage.unavailable': 'Sauvegarde impossible dans ce navigateur : votre partie sera perdue en fermant la page. Exportez-la depuis l\'onglet Agence.',
+
   // Hors ligne
   'offline.title':    'BIENVENUE DE RETOUR',
   'offline.subtitle': 'Vos agents ont travaillé pendant votre absence.',
@@ -361,6 +363,7 @@ const en: Record<UiKey, string> = {
   'incident.solved':   'Incident solved! +{reward}',
   'incident.wrong':    'Wrong answer — incident not solved.',
 
+  'storage.unavailable': 'This browser blocks saving: your game will be lost when you close the page. Export it from the Agency tab.',
   'offline.title':    'WELCOME BACK',
   'offline.subtitle': 'Your agents kept working while you were away.',
   'offline.earned':   'Offline income',

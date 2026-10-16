@@ -56,7 +56,18 @@ export class SaveSystem {
   }
 
   isFirstTime(): boolean {
-    return !localStorage.getItem(SAVE_KEY);
+    try { return !localStorage.getItem(SAVE_KEY); } catch { return true; }
+  }
+
+  /** Le navigateur accepte-t-il d'écrire puis relire ? (iframe itch.io, cookies tiers bloqués, navigation privée) */
+  isAvailable(): boolean {
+    try {
+      const probe = 'bot-empire-probe';
+      localStorage.setItem(probe, '1');
+      const ok = localStorage.getItem(probe) === '1';
+      localStorage.removeItem(probe);
+      return ok;
+    } catch { return false; }
   }
 
   // ─── ACHATS (device-only) ─────────────────────────────────

@@ -243,8 +243,20 @@ if (urlState) {
 // 3. Bulle d'aide : premier clic (nouvelle partie uniquement)
 if (state.totalEarned === 0 && state.prestigeCount === 0) hints.show('first-click');
 
+// ─── STOCKAGE INDISPONIBLE ───────────────────────────────────
+// Sans stockage, rien n'est gardé (et Firebase créerait un nouveau compte anonyme à chaque visite) :
+// on prévient le joueur, sans fermeture automatique, et on coupe la sauvegarde cloud.
+const storageOk = saveSystem.isAvailable();
+if (!storageOk) {
+  const el = document.createElement('div');
+  el.className = 'notif orange incident-notice storage-notice';
+  el.setAttribute('role', 'alert');
+  el.textContent = t('storage.unavailable');
+  document.getElementById('notifications')!.prepend(el);
+}
+
 // ─── CLOUD SAVE INIT ─────────────────────────────────────────
-if (CLOUD_SAVE_ENABLED) {
+if (CLOUD_SAVE_ENABLED && storageOk) {
   cloud.init(FIREBASE_CONFIG).then(async (ok) => {
     if (!ok) return;
     const cloudState = await cloud.getIfNewer(state);

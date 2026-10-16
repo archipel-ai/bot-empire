@@ -1439,3 +1439,6 @@ button:focus-visible, label:focus-within, textarea:focus-visible, input:focus-vi
   .tab.active { padding-inline: 10px; }
   .tab.active .tab-count:not(.has-new):not(.ready) { display: none; }
 }
+
+/* Alerte permanente quand le navigateur refuse la sauvegarde */
+.notif.storage-notice { padding: 10px 14px 10px 16px; max-width: 360px; line-height: 1.45; }
