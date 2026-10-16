@@ -1,18 +1,26 @@
-import { t } from '../i18n/i18n.ts';
+import { t, LANG } from '../i18n/i18n.ts';
 
-const SUFFIXES = ['', 'K', 'M', 'B', 'T', 'Qa', 'Qi', 'Sx', 'Sp', 'Oc'];
+const SUFFIXES_EN = ['', 'K', 'M', 'B', 'T', 'Qa', 'Qi', 'Sx', 'Sp', 'Oc'];
+const SUFFIXES_FR = ['', 'k', 'M', 'Md', 'T', 'Qa', 'Qi', 'Sx', 'Sp', 'Oc'];
+const FR = LANG === 'fr';
+const NBSP = '\u202f'; // espace fine insécable, comme en typographie française
 
 export function formatNumber(value: number, decimals = 2): string {
   if (!isFinite(value) || isNaN(value)) return '0';
-  if (value < 1000) return value.toFixed(decimals);
+  const comma = (s: string) => (FR ? s.replace('.', ',') : s);
+  if (value < 1000) return comma(value.toFixed(decimals));
+  const suffixes = FR ? SUFFIXES_FR : SUFFIXES_EN;
   const tier = Math.floor(Math.log10(Math.abs(value)) / 3);
-  const suffix = SUFFIXES[Math.min(tier, SUFFIXES.length - 1)];
+  const suffix = suffixes[Math.min(tier, suffixes.length - 1)];
   const scaled = value / Math.pow(1000, tier);
-  return `${scaled.toFixed(decimals)}${suffix}`;
+  return FR ? `${comma(scaled.toFixed(decimals))}${NBSP}${suffix}` : `${scaled.toFixed(decimals)}${suffix}`;
 }
 
+/** Français : « 43,18 k€ », « 0,15 € ». Anglais : « €43.18K ». */
 export function formatCurrency(value: number, decimals = 2): string {
-  return `€${formatNumber(value, decimals)}`;
+  if (!FR) return `€${formatNumber(value, decimals)}`;
+  const n = formatNumber(value, decimals);
+  return n.includes(NBSP) ? `${n}€` : `${n}${NBSP}€`;
 }
 
 export function formatRate(value: number): string {
