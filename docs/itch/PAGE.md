@@ -38,6 +38,6 @@ Vous dirigez une agence d'automatisation à une personne. Chaque clic exécute u
 - Vos agents continuent de travailler pendant votre absence
 - En français ou en anglais, sur ordinateur et téléphone, sans compte ni téléchargement
 
-**Privacy / Confidentialité** — Your progress is saved in your browser. A copy is also kept under an anonymous ID with Google Firebase (servers in Europe), so you don't lose it; no name, e-mail or account is collected. Clearing your browser data erases it. / Votre progression est enregistrée dans votre navigateur. Une copie est aussi gardée sous un identifiant anonyme chez Google Firebase (serveurs en Europe), pour ne pas la perdre ; aucun nom, e-mail ni compte n'est collecté. Effacer les données du navigateur la supprime.
+**Privacy / Confidentialité** — Your progress is saved in your browser. A copy is also kept under an anonymous ID with Google Firebase (servers in Europe), so you don't lose it; no name, e-mail or account is collected. / Votre progression est enregistrée dans votre navigateur. Une copie est aussi gardée sous un identifiant anonyme chez Google Firebase (serveurs en Europe), pour ne pas la perdre ; aucun nom, e-mail ni compte n'est collecté.
 
 *Une production L'Archipel.*
