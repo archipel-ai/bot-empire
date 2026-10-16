@@ -296,6 +296,7 @@ button:focus-visible, label:focus-within, textarea:focus-visible, input:focus-vi
   letter-spacing: -.01em;
 }
 .btn-click-value {
+  white-space: nowrap;
   font-family: var(--mono);
   font-variant-numeric: tabular-nums;
   font-size: 14px;
@@ -423,8 +424,17 @@ button:focus-visible, label:focus-within, textarea:focus-visible, input:focus-vi
   scrollbar-width: none;
 }
 .tabs::-webkit-scrollbar { display: none; }
-/* 7 onglets ne tiennent pas : seul l'onglet actif montre son nom, les autres gardent icône et compteur */
-.tab { position: relative; }
+/* 7 onglets ne tiennent pas : seul l'onglet actif montre son nom et son compteur.
+   Les autres gardent leur icône ; un point signale ce qui attend le joueur (contrat, leçon, prestige prêt). */
+.tab { position: relative; min-width: 44px; justify-content: center; }
+.tab:not(.active) { padding-inline: 10px; }
+.tab:not(.active) .tab-count:not(.has-new):not(.ready) { display: none; }
+.tab:not(.active) .tab-count.has-new,
+.tab:not(.active) .tab-count.ready {
+  position: absolute; top: 8px; right: 5px; width: 8px; height: 8px; padding: 0;
+  font-size: 0; border-radius: 50%; background: var(--alerte) !important;
+}
+.tab:not(.active) .tab-count.ready { background: var(--ambre) !important; }
 .tab:not(.active) .tab-label {
   position: absolute; width: 1px; height: 1px; overflow: hidden;
   clip-path: inset(50%); white-space: nowrap;
@@ -1419,4 +1429,13 @@ button:focus-visible, label:focus-within, textarea:focus-visible, input:focus-vi
     animation-iteration-count: 1 !important;
     transition-duration: .01ms !important;
   }
+}
+
+/* Panneau étroit (téléphone, iframe itch.io) : l'onglet actif garde son nom mais pas son compteur */
+.tab-panel-wrap, .tabs { container-type: inline-size; }
+@container (max-width: 430px) {
+  .tab { min-width: 40px; }
+  .tab:not(.active) { padding-inline: 8px; }
+  .tab.active { padding-inline: 10px; }
+  .tab.active .tab-count:not(.has-new):not(.ready) { display: none; }
 }
