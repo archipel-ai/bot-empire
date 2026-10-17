@@ -186,6 +186,14 @@ export const INCIDENTS: IncidentQuestion[] = [
   },
 ];
 
+/** Un incident réussi vaut au moins 30 s de revenu (montant figé à l'apparition de l'incident). */
+export const INCIDENT_REWARD_SECONDS = 30;
+
+/** Récompense indexée d'un incident : max(montant fixe, 30 × revenu par seconde). */
+export function getIncidentReward(base: number, rate: number): number {
+  return Math.max(base, INCIDENT_REWARD_SECONDS * (rate > 0 ? rate : 0));
+}
+
 const FIRST_INCIDENT_MIN_S = 210; // premier incident : 3.5-5 min après lancement
 const FIRST_INCIDENT_SPAN_S = 90;
 const NEXT_INCIDENT_MIN_S  = 180; // suivants : 3-5 min

@@ -1,11 +1,12 @@
 /**
  * ContractSystem — Board de 3 contrats urgents time-limited.
- * Nouveaux contrats apparaissent toutes les 20-40 min si un slot est libre.
+ * Nouveaux contrats apparaissent toutes les 10-20 min si un slot est libre.
+ * Récompense indexée sur le revenu : max(montant fixe, k secondes de revenu), figée à l'acceptation.
  * Les contrats expirent si non acceptés. Une fois accepté, progression auto.
  */
 
-import { ContractDef, CONTRACTS } from '../config/contracts.ts';
-import { GameState } from '../core/GameState.ts';
+import { type ContractDef, CONTRACTS } from '../config/contracts.ts';
+import type { GameState } from '../core/GameState.ts';
 
 export interface ActiveContract extends ContractDef {
   slotId:      number;
@@ -16,8 +17,16 @@ export interface ActiveContract extends ContractDef {
 }
 
 const BASE_BOARD_SIZE = 3;
-const REFILL_MIN      = 20 * 60;  // 20 min
-const REFILL_MAX      = 40 * 60;  // 40 min
+const REFILL_MIN      = 10 * 60;  // 10 min (20 en 1.1)
+const REFILL_MAX      = 20 * 60;  // 20 min (40 en 1.1)
+
+/** Secondes de revenu que vaut un contrat, selon sa rareté (k de la récompense indexée). */
+export const CONTRACT_REWARD_SECONDS: Record<ContractDef['rarity'], number> = { common: 20, rare: 60, epic: 150 };
+
+/** Récompense indexée : max(montant fixe du contrat, k × revenu par seconde). */
+export function getIndexedContractReward(base: number, rarity: ContractDef['rarity'], rate: number): number {
+  return Math.max(base, CONTRACT_REWARD_SECONDS[rarity] * (rate > 0 ? rate : 0));
+}
 const SAVE_KEY        = 'bot-empire-contracts';
 
 export class ContractSystem {
@@ -126,7 +135,19 @@ export class ContractSystem {
     return true;
   }
 
-  accept(contract: ActiveContract): void {
+  /**
+   * Récompense affichée : figée pour un contrat accepté, indexée sur le revenu actuel sinon
+   * (avant le bonus de réputation et d'Academy, appliqué à la livraison).
+   */
+  getReward(contract: ActiveContract, rate: number): number {
+    if (contract.status === 'accepted') return contract.reward;
+    const base = CONTRACTS.find(c => c.id === contract.id)?.reward ?? contract.reward;
+    return getIndexedContractReward(base, contract.rarity, rate);
+  }
+
+  /** Accepte le contrat : la récompense est figée sur le revenu du moment (`rate`). */
+  accept(contract: ActiveContract, rate = 0): void {
+    contract.reward = this.getReward(contract, rate);
     const now = Date.now();
     contract.acceptedAt  = now;
     contract.completesAt = now + contract.workTime * this.workTimeMult * 1000;

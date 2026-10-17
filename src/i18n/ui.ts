@@ -151,7 +151,8 @@ const fr = {
   'contract.accepted':   'Contrat accepté ! Livraison dans {time}',
   'contract.board':      'BOARD DE CONTRATS — {available} disponible(s), {accepted} en cours',
   'contract.emptySlot':  "Slot {n} — En attente d'un nouveau contrat",
-  'contract.nextIn':     'Prochain contrat dans 20-40 min',
+  'contract.nextIn':     'Prochain contrat dans 10-20 min',
+  'contract.rewardIndexed': '≈ {n} s de revenu',
   'contract.epic':       'ÉPIQUE',
   'contract.rare':       '✦ RARE',
   'contract.common':     'STANDARD',
@@ -203,6 +204,14 @@ const fr = {
   'incident.won':      '+{reward} encaissés ! {lesson}',
   'incident.solved':   'Incident résolu ! +{reward}',
   'incident.wrong':    'Mauvaise réponse — incident non résolu.',
+
+  // Lettre ambre
+  'lead.aria':         'Lead entrant : touchez la lettre ambre',
+  'lead.boost':        'Lead chaud ! Revenu ×3 pendant 30 s',
+  'lead.cash':         'Contrat signé sur le champ : +{amount}',
+  'lead.click':        "Le fondateur s'y met : clic ×10 pendant 15 s",
+  'lead.chipBoost':    'revenu ×3 · {n} s',
+  'lead.chipClick':    'clic ×10 · {n} s',
 
   'storage.unavailable': 'Sauvegarde impossible dans ce navigateur : votre partie sera perdue en fermant la page. Exportez-la depuis l\'onglet Agence.',
 
@@ -412,7 +421,8 @@ const en: Record<UiKey, string> = {
   'contract.accepted':   'Contract accepted! Delivery in {time}',
   'contract.board':      'CONTRACT BOARD — {available} available, {accepted} in progress',
   'contract.emptySlot':  'Slot {n} — Waiting for a new contract',
-  'contract.nextIn':     'Next contract in 20-40 min',
+  'contract.nextIn':     'Next contract in 10-20 min',
+  'contract.rewardIndexed': '≈ {n}s of income',
   'contract.epic':       'EPIC',
   'contract.rare':       '✦ RARE',
   'contract.common':     'STANDARD',
@@ -461,6 +471,13 @@ const en: Record<UiKey, string> = {
   'incident.won':      '+{reward} earned! {lesson}',
   'incident.solved':   'Incident solved! +{reward}',
   'incident.wrong':    'Wrong answer — incident not solved.',
+
+  'lead.aria':         'Incoming lead: tap the amber letter',
+  'lead.boost':        'Hot lead! Income ×3 for 30s',
+  'lead.cash':         'Deal signed on the spot: +{amount}',
+  'lead.click':        'The founder pitches in: click ×10 for 15s',
+  'lead.chipBoost':    'income ×3 · {n}s',
+  'lead.chipClick':    'click ×10 · {n}s',
 
   'storage.unavailable': 'This browser blocks saving: your game will be lost when you close the page. Export it from the Agency tab.',
   'offline.title':    'WELCOME BACK',

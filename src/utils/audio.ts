@@ -126,6 +126,17 @@ export function playClientUnlock(): void {
   });
 }
 
+/** Lettre ambre attrapée : la cloche douce, plus aiguë. */
+export function playLead(): void {
+  const c = ac();
+  if (!c) return;
+  const f0 = 1174.66;
+  const now = c.currentTime;
+  [[1, 0.13, 1.4], [2.76, 0.05, 0.9], [5.4, 0.025, 0.6]].forEach(([ratio, vol, dur]) => {
+    note(c, f0 * ratio!, now, dur!, vol!, 'sine');
+  });
+}
+
 /** Étape franchie, jalon, événement de marché : un accord bref, légèrement égrené. */
 export function playMilestone(): void {
   const c = ac();

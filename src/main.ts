@@ -10,16 +10,18 @@ import { type GameState } from './core/GameState.ts';
 import { Renderer, type BuyMode } from './ui/Renderer.ts';
 import { Bureau } from './ui/Bureau.ts';
 import { formatCurrency, formatCurrencyCompact, formatDuration, setText } from './utils/format.ts';
-import { playClick, playPurchase, playClientUnlock, playMilestone, playPrestige, isSoundOn, setSoundOn } from './utils/audio.ts';
+import { playClick, playPurchase, playClientUnlock, playMilestone, playPrestige, playLead, isSoundOn, setSoundOn } from './utils/audio.ts';
 import { EchoSystem } from './systems/EchoSystem.ts';
-import { IncidentSystem, type IncidentQuestion } from './systems/IncidentSystem.ts';
+import { IncidentSystem, getIncidentReward, type IncidentQuestion } from './systems/IncidentSystem.ts';
+import { LeadSystem } from './systems/LeadSystem.ts';
+import { LeadLetter } from './ui/LeadLetter.ts';
 import { Hints } from './ui/Hints.ts';
 import { Drawer } from './ui/Drawer.ts';
 import { CLIENTS } from './config/clients.ts';
 import { UPGRADES } from './config/upgrades.ts';
 import { CloudSave } from './core/CloudSave.ts';
 import { FIREBASE_CONFIG, CLOUD_SAVE_ENABLED } from './config/firebase.ts';
-import { ContractSystem, type ActiveContract } from './systems/ContractSystem.ts';
+import { ContractSystem, CONTRACT_REWARD_SECONDS, type ActiveContract } from './systems/ContractSystem.ts';
 import { MarketSystem } from './systems/MarketSystem.ts';
 import { AcademySystem } from './systems/AcademySystem.ts';
 import {
@@ -56,6 +58,9 @@ const contractSys = new ContractSystem();
 contractSys.setRateProvider(s => engine.getTotalRate(s));
 const market      = new MarketSystem();
 const academy     = new AcademySystem();
+const lead        = new LeadSystem();
+const leadLetter  = new LeadLetter(() => catchLead());
+const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 
 // Marché IA Vivant — éléments bannière
 const marketBanner     = document.getElementById('market-banner')!;
@@ -340,13 +345,18 @@ function gameLoop(timestamp: number): void {
 
     // Clics automatiques ÉCHO
     const echoClicks = echo.tick(dt);
-    const clickMult  = market.getClickMultiplier();
+    const clickMult  = market.getClickMultiplier() * lead.getClickMultiplier();
     for (let i = 0; i < echoClicks; i++) {
       state = engine.click(state, clickMult);
       triggerGhostClick();
     }
 
-    const incomeMult = engine.getEffectiveMarketMult(state, market.getIncomeMultiplier());
+    // Lettre ambre : apparaît en jeu actif seulement ; son ×3 se cumule avec un événement de marché
+    const leadEvent = lead.tick(dt, canSpawnLead(), engine.getLeadIntervalMult(state), reducedMotion.matches);
+    if (leadEvent === 'spawn') leadLetter.show(reducedMotion.matches);
+    if (leadEvent === 'expire') leadLetter.hide();
+
+    const incomeMult = engine.getEffectiveMarketMult(state, market.getIncomeMultiplier()) * lead.getIncomeMultiplier();
     const { state: nextState, result } = engine.tick(state, dt, incomeMult);
     state = nextState;
     accumulator -= TICK_MS;
@@ -397,6 +407,7 @@ function gameLoop(timestamp: number): void {
   updateEchoUI();
   updateContractProgressBars();
   updateAcademyLive();
+  updateLeadUI();
   hints.reposition();
   requestAnimationFrame(gameLoop);
 }
@@ -407,7 +418,7 @@ requestAnimationFrame(gameLoop);
 
 // Bouton de travail
 function handleClick(e: MouseEvent | PointerEvent): void {
-  state = engine.click(state, market.getClickMultiplier());
+  state = engine.click(state, market.getClickMultiplier() * lead.getClickMultiplier());
   echo.recordClick();
   renderer.markDirty();
   spawnInkLetters(e.currentTarget as HTMLElement, elCurrency, CLICK_LETTERS_MIN + Math.floor(Math.random() * 3));
@@ -427,7 +438,7 @@ btnEcho.addEventListener('click', () => {
   notify(t('echo.activated', { n: engine.getEchoReplaySeconds(state) }), 'orange');
 });
 
-// Délégation — sélecteur ×1 / ×10 / max puis achat d'agents
+// Onglet Agents (délégation d'événements) : Délégation, sélecteur ×1 / ×10 / max, achat d'agents
 document.getElementById('tab-agents')!.addEventListener('click', (e) => {
   const modeBtn = (e.target as Element).closest('[data-buy-mode]') as HTMLElement | null;
   if (modeBtn) {
@@ -450,15 +461,7 @@ document.getElementById('tab-agents')!.addEventListener('click', (e) => {
     renderer.markDirty();
     playPurchase();
     bureau.celebratePurchase(agentId);
-    // Palier d'équipe franchi (25, 50, 100, 200)
-    const tier = getTeamTier(now);
-    if (tier > getTeamTier(prev)) {
-      const def = AGENTS.find(a => a.id === agentId);
-      notifyMilestone(t('tier.reached', {
-        name: def?.name ?? agentId, n: TEAM_TIERS[tier - 1]!, mult: formatMultiplier(getTeamTierMultiplier(now)),
-      }));
-      playMilestone();
-    }
+    announceTier(agentId, prev, now);
     hints.dismiss('first-agent');
     // Flash achat sur la card
     const card = btn.closest('.agent-card');
@@ -469,7 +472,7 @@ document.getElementById('tab-agents')!.addEventListener('click', (e) => {
   }
 });
 
-// Délégation — achat upgrade
+// Onglet Améliorations — achat
 document.getElementById('tab-upgrades')!.addEventListener('click', (e) => {
   const btn = (e.target as Element).closest('[data-buy-upgrade]') as HTMLElement | null;
   if (!btn) return;
@@ -751,13 +754,55 @@ function spawnRipple(e: MouseEvent): void {
 }
 
 
+/** Palier d'équipe franchi (25, 50, 100, 200) : notification et accord. */
+function announceTier(agentId: string, prev: number, now: number): void {
+  const tier = getTeamTier(now);
+  if (tier <= getTeamTier(prev)) return;
+  const def = AGENTS.find(a => a.id === agentId);
+  notifyMilestone(t('tier.reached', {
+    name: def?.name ?? agentId, n: TEAM_TIERS[tier - 1]!, mult: formatMultiplier(getTeamTierMultiplier(now)),
+  }));
+  playMilestone();
+}
+
+// ─── LETTRE AMBRE ────────────────────────────────────────────
+
+/** La lettre n'apparaît qu'en jeu actif : onglet visible, aucune fenêtre, scène non couverte par le tiroir. */
+function canSpawnLead(): boolean {
+  return !document.hidden && !anyModalOpen()
+    && document.getElementById('drawer-handle')?.getAttribute('aria-expanded') !== 'true';
+}
+
+function catchLead(): void {
+  const res = lead.catch(engine.getTotalRate(state), state.currency, engine.getLeadIntervalMult(state));
+  if (!res) return;
+  leadLetter.burst(elCurrency);
+  playLead();
+  if (res.effect === 'cash') {
+    state = engine.earn(state, res.amount);
+    renderer.markDirty();
+    notifyMilestone(t('lead.cash', { amount: formatCurrency(res.amount) }));
+  } else {
+    notifyMilestone(t(res.effect === 'boost' ? 'lead.boost' : 'lead.click'));
+  }
+}
+
+function updateLeadUI(): void {
+  leadLetter.update(lead.getProgress(reducedMotion.matches));
+  const boost = lead.getBoostSeconds();
+  const click = lead.getClickSeconds();
+  leadLetter.setChip(boost > 0 ? t('lead.chipBoost', { n: boost }) : click > 0 ? t('lead.chipClick', { n: click }) : '');
+}
+
 // ─── INCIDENT ────────────────────────────────────────────────
 
 let currentIncident: IncidentQuestion | null = null;
+let currentIncidentReward = 0; // figée à l'apparition : max(montant fixe, 30 s de revenu)
 
 /** Affiche la notification d'incident : cliquable pour ouvrir le quiz, ou ignorable. */
 function offerIncident(q: IncidentQuestion): void {
   currentIncident   = q;
+  currentIncidentReward = getIncidentReward(q.reward, engine.getTotalRate(state));
   incidentOfferLeft = INCIDENT_OFFER_DURATION;
 
   const el = document.createElement('div');
@@ -768,7 +813,7 @@ function offerIncident(q: IncidentQuestion): void {
   `;
   el.querySelector('.incident-notice-close')!.setAttribute('aria-label', t('incident.ignore'));
   el.querySelector('.incident-notice-open')!.textContent =
-    t('incident.notice', { client: q.client, reward: formatCurrency(q.reward) });
+    t('incident.notice', { client: q.client, reward: formatCurrency(currentIncidentReward) });
   el.querySelector('.incident-notice-open')!.addEventListener('click', () => {
     removeIncidentNotice();
     showIncident(q);
@@ -841,11 +886,12 @@ function resolveIncident(chosen: number): void {
 
   // Résultat
   if (isRight) {
-    state = engine.earn(state, q.reward);
+    const reward = currentIncidentReward || q.reward;
+    state = engine.earn(state, reward);
     incidentResultIcon.innerHTML = icon('check');
     incidentResultIcon.className = 'incident-result-icon ok';
-    incidentLesson.textContent     = t('incident.won', { reward: formatCurrency(q.reward), lesson: q.lesson });
-    notify(t('incident.solved', { reward: formatCurrency(q.reward) }), 'green');
+    incidentLesson.textContent     = t('incident.won', { reward: formatCurrency(reward), lesson: q.lesson });
+    notify(t('incident.solved', { reward: formatCurrency(reward) }), 'green');
     playPurchase();
   } else {
     incidentResultIcon.innerHTML = icon('cross');
@@ -916,8 +962,9 @@ function renderContracts(): void {
     const btn = tabContracts.querySelector(`[data-accept="${slot.id}"]`) as HTMLButtonElement | null;
     if (!btn) return;
     btn.addEventListener('click', () => {
-      if (!contractSys.canAccept(slot, state, engine.getTotalRate(state))) return;
-      contractSys.accept(slot);
+      const rate = engine.getTotalRate(state);
+      if (!contractSys.canAccept(slot, state, rate)) return;
+      contractSys.accept(slot, rate);
       notify(t('contract.accepted', { time: formatTimeLeft(slot.workTime * 1000).label }), 'green');
       renderContracts();
     });
@@ -941,6 +988,10 @@ function renderContractSlot(slot: ActiveContract | null, i: number): string {
 
   if (slot.status === 'available') {
     const timeLeft = formatTimeLeft(slot.expiresAt - Date.now());
+    const base = slot.reward;
+    const reward = contractSys.getReward(slot, engine.getTotalRate(state));
+    const indexed = reward > base
+      ? ` <span class="contract-indexed">(${t('contract.rewardIndexed', { n: CONTRACT_REWARD_SECONDS[slot.rarity] })})</span>` : '';
     return `
       <div class="contract-card rarity-${slot.rarity}">
         <div class="contract-top">
@@ -959,7 +1010,7 @@ function renderContractSlot(slot: ActiveContract | null, i: number): string {
           </div>
         </div>
         <div class="contract-bottom">
-          <span class="contract-reward">+${formatCurrency(slot.reward)}</span>
+          <span class="contract-reward">+${formatCurrency(reward)}${indexed}</span>
           <span class="contract-timer ${timeLeft.urgent ? 'urgent' : ''}">${icon('clock')}${timeLeft.label}</span>
           <button class="btn-contract" data-accept="${slot.id}" ${canAccept ? '' : 'disabled'}>
             ${canAccept ? t('contract.accept') : t('contract.required')}
