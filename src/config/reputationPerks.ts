@@ -84,6 +84,26 @@ export const REPUTATION_PERKS: ReputationPerk[] = [
   },
 ];
 
+// ─── NOTORIÉTÉ : bonus à niveaux, sans plafond pratique ──────────
+// Chaque niveau est une clé booléenne `rep-notoriete-<n>` de reputationPurchased : aucun champ
+// de sauvegarde nouveau (les règles Firebase n'acceptent que de nouvelles clés dans ce dictionnaire).
+
+export const NOTORIETE_PREFIX            = 'rep-notoriete-';
+/** Niveaux possibles. Le 50e coûte 5 × 2^49 ≈ 2,8·10^15 RP : hors d'atteinte, donc « sans plafond ». */
+export const NOTORIETE_MAX_LEVEL         = 50;
+export const NOTORIETE_INCOME_PER_LEVEL  = 0.05; // +5 % de revenu par niveau
+const NOTORIETE_BASE_COST                = 5;
+const NOTORIETE_COST_GROWTH              = 2;    // le prix double à chaque niveau
+
+/** Identifiants des niveaux de Notoriété, du 1er au dernier. */
+export const NOTORIETE_IDS: readonly string[] =
+  Array.from({ length: NOTORIETE_MAX_LEVEL }, (_, i) => `${NOTORIETE_PREFIX}${i + 1}`);
+
+/** Coût en RP du niveau `level` (1 pour le premier) : 5, 10, 20, 40… */
+export function getNotorieteCost(level: number): number {
+  return Math.ceil(NOTORIETE_BASE_COST * Math.pow(NOTORIETE_COST_GROWTH, level - 1));
+}
+
 /** RP obtenus quand les gains de la partie égalent l'objectif du premier prestige */
 const RP_AT_FIRST_PRESTIGE = 3;
 

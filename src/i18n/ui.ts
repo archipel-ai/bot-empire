@@ -160,6 +160,11 @@ const fr = {
   'rep.buy':          'Acheter',
   'rep.missing':      'Manque {n} pts',
   'rep.activated':    '{name} activé !',
+  'rep.notoriete':        'Notoriété',
+  'rep.notorieteDesc':    '+5 % de revenu par niveau, sans plafond. Le prix double à chaque niveau.',
+  'rep.notorieteLevel':   'Niveau {n} · revenu +{pct} %',
+  'rep.notorieteLocked':  "S'ouvre quand les {n} bonus ci-dessus sont acquis",
+  'rep.notorieteBought':  'Notoriété niveau {n} !',
 
   // Partage / import
   'share.title':      'PARTAGER MON AGENCE',
@@ -352,6 +357,11 @@ const en: Record<UiKey, string> = {
   'rep.buy':          'Buy',
   'rep.missing':      '{n} pts short',
   'rep.activated':    '{name} enabled!',
+  'rep.notoriete':        'Renown',
+  'rep.notorieteDesc':    '+5% income per level, no cap. The price doubles with each level.',
+  'rep.notorieteLevel':   'Level {n} · income +{pct}%',
+  'rep.notorieteLocked':  'Opens once the {n} perks above are owned',
+  'rep.notorieteBought':  'Renown level {n}!',
 
   'share.title':      'SHARE MY AGENCY',
   'share.subtitle':   'This link holds your full progress. Send it to yourself to switch devices, move to the home-screen app, or show off your stats!',

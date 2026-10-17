@@ -2,7 +2,9 @@ import { type GameState, MAX_AMOUNT, createInitialState } from './GameState.ts';
 import { AGENTS, type AgentDef, getTeamTierMultiplier } from '../config/agents.ts';
 import { CLIENTS } from '../config/clients.ts';
 import { UPGRADES } from '../config/upgrades.ts';
-import { REPUTATION_PERKS, getPrestigeRP } from '../config/reputationPerks.ts';
+import {
+  REPUTATION_PERKS, getPrestigeRP, NOTORIETE_IDS, NOTORIETE_MAX_LEVEL, NOTORIETE_INCOME_PER_LEVEL, getNotorieteCost,
+} from '../config/reputationPerks.ts';
 
 const PRESTIGE_BASE           = 10_000_000; // atteint juste après le dernier client (~30 min la 1re partie)
 const PRESTIGE_SCALE          = 1.5;  // ×1.5 par prestige : chaque partie reste plus courte que la précédente
@@ -349,7 +351,40 @@ export class GameEngine {
   }
 
   getReputationIncomeMult(state: GameState): number {
-    return this.hasRepPerk(state, 'rep-income-x125') ? 1.25 : 1;
+    const expertise = this.hasRepPerk(state, 'rep-income-x125') ? 1.25 : 1;
+    return expertise * (1 + NOTORIETE_INCOME_PER_LEVEL * this.getNotorieteLevel(state));
+  }
+
+  // ─── NOTORIÉTÉ ─────────────────────────────────────────────
+
+  /** Niveau de Notoriété : nombre de clés `rep-notoriete-<n>` achetées. */
+  getNotorieteLevel(state: GameState): number {
+    return NOTORIETE_IDS.filter(id => state.reputationPurchased?.[id]).length;
+  }
+
+  /** La Notoriété s'ouvre une fois tous les bonus de réputation de base acquis. */
+  isNotorieteOpen(state: GameState): boolean {
+    return REPUTATION_PERKS.every(p => this.hasRepPerk(state, p.id));
+  }
+
+  /** Coût en RP du prochain niveau de Notoriété (Infinity au dernier niveau). */
+  getNextNotorieteCost(state: GameState): number {
+    const level = this.getNotorieteLevel(state);
+    return level >= NOTORIETE_MAX_LEVEL ? Infinity : getNotorieteCost(level + 1);
+  }
+
+  canBuyNotoriete(state: GameState): boolean {
+    return this.isNotorieteOpen(state) && (state.reputationPoints ?? 0) >= this.getNextNotorieteCost(state);
+  }
+
+  buyNotoriete(state: GameState): GameState {
+    if (!this.canBuyNotoriete(state)) return state;
+    const next = NOTORIETE_IDS.find(id => !state.reputationPurchased?.[id])!;
+    return {
+      ...state,
+      reputationPoints: (state.reputationPoints ?? 0) - this.getNextNotorieteCost(state),
+      reputationPurchased: { ...(state.reputationPurchased ?? {}), [next]: true },
+    };
   }
 
   getReputationClickMult(state: GameState): number {

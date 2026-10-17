@@ -23,7 +23,7 @@ import { ContractSystem, type ActiveContract } from './systems/ContractSystem.ts
 import { MarketSystem } from './systems/MarketSystem.ts';
 import { AcademySystem } from './systems/AcademySystem.ts';
 import { CHAPTERS, CHALLENGES, getChallengesByChapter, type AcademyChallenge } from './config/academy.ts';
-import { REPUTATION_PERKS } from './config/reputationPerks.ts';
+import { REPUTATION_PERKS, NOTORIETE_INCOME_PER_LEVEL } from './config/reputationPerks.ts';
 import { spawnFloatingNumber, spawnInkLetters, flashScreen, typeText } from './utils/gamefeel.ts';
 import { formatRate, formatMultiplier } from './utils/format.ts';
 import { AGENTS, TEAM_TIERS, getTeamTier, getTeamTierMultiplier } from './config/agents.ts';
@@ -1026,6 +1026,30 @@ function renderReputation(): void {
     `;
   }).join('');
 
+  // Notoriété : niveaux sans plafond, après les bonus de base (en tête de liste une fois ouverte)
+  const notoLevel  = engine.getNotorieteLevel(state);
+  const notoOpen   = engine.isNotorieteOpen(state);
+  const notoCost   = engine.getNextNotorieteCost(state);
+  const notoCanBuy = engine.canBuyNotoriete(state);
+  const notoHtml = `
+    <div class="rep-perk-card rep-perk-wide${notoOpen ? '' : ' locked'}${notoCanBuy ? ' affordable' : ''}${notoLevel > 0 ? ' owned' : ''}">
+      <div class="rep-perk-top">
+        <span class="rep-perk-icon">${icon('crown')}</span>
+        <div class="rep-perk-meta">
+          <div class="rep-perk-name">${t('rep.notoriete')}</div>
+          <div class="rep-perk-desc">${notoOpen ? t('rep.notorieteDesc') : t('rep.notorieteLocked', { n: REPUTATION_PERKS.length })}</div>
+          ${notoLevel > 0 ? `<div class="rep-perk-level">${t('rep.notorieteLevel', { n: notoLevel, pct: Math.round(notoLevel * NOTORIETE_INCOME_PER_LEVEL * 100) })}</div>` : ''}
+        </div>
+      </div>
+      ${Number.isFinite(notoCost) ? `
+      <div class="rep-perk-footer">
+        <span class="rep-perk-cost">${icon('star')}${notoCost}</span>
+        <button class="btn-rep-buy" data-buy-noto ${notoCanBuy ? '' : 'disabled'}>
+          ${notoCanBuy ? t('rep.buy') : notoOpen ? t('rep.missing', { n: notoCost - rp }) : icon('lock')}
+        </button>
+      </div>` : ''}
+    </div>`;
+
   tabReputation.innerHTML = `
     <div class="reputation-header">
       <div class="reputation-balance">
@@ -1036,8 +1060,22 @@ function renderReputation(): void {
         ${t('rep.next')}<br><strong>+${nextRP} pts</strong>
       </div>
     </div>
-    <div class="rep-perk-grid">${perksHtml}</div>
+    <div class="rep-perk-grid">${notoOpen ? notoHtml + perksHtml : perksHtml + notoHtml}</div>
   `;
+
+  tabReputation.querySelector('[data-buy-noto]')?.addEventListener('click', () => {
+    const before = engine.getNotorieteLevel(state);
+    state = engine.buyNotoriete(state);
+    const after = engine.getNotorieteLevel(state);
+    if (after > before) {
+      notify(t('rep.notorieteBought', { n: after }), 'purple');
+      playPurchase();
+      applyReputationEffects();
+      saveSystem.save(state);
+      renderer.markDirty();
+      renderReputation();
+    }
+  });
 
   // Événements d'achat
   tabReputation.querySelectorAll('[data-buy-rep]').forEach(btn => {

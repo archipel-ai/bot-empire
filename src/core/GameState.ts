@@ -1,7 +1,7 @@
 import { AGENTS } from '../config/agents.ts';
 import { CLIENTS } from '../config/clients.ts';
 import { UPGRADES } from '../config/upgrades.ts';
-import { REPUTATION_PERKS } from '../config/reputationPerks.ts';
+import { REPUTATION_PERKS, NOTORIETE_IDS } from '../config/reputationPerks.ts';
 
 export interface AgentState {
   count: number;
@@ -32,6 +32,7 @@ export function createInitialState(): GameState {
 
   const reputationPurchased: Record<string, boolean> = {};
   REPUTATION_PERKS.forEach(p => { reputationPurchased[p.id] = false; });
+  NOTORIETE_IDS.forEach(id => { reputationPurchased[id] = false; });
 
   return {
     currency: 0,

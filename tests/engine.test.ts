@@ -164,3 +164,26 @@ test('prestige : la réputation survit, les nouveaux marchés repartent de zéro
   assert.ok(p.reputationPoints > s.reputationPoints);
   assert.deepEqual(Object.keys(p.agents).sort(), Object.keys(s.agents).sort());
 });
+
+test('Notoriété : +5 % par niveau, coût 5 × 2^n, ouverte après les 8 bonus, survit au prestige', async () => {
+  const { REPUTATION_PERKS, getNotorieteCost } = await import('../src/config/reputationPerks.ts');
+  assert.deepEqual([1, 2, 3, 4].map(getNotorieteCost), [5, 10, 20, 40]);
+  let s = { ...createInitialState(), reputationPoints: 100 };
+  assert.equal(engine.canBuyNotoriete(s), false); // bonus de base pas encore tous acquis
+  for (const p of REPUTATION_PERKS) s.reputationPurchased[p.id] = true;
+  const mult0 = engine.getReputationIncomeMult(s);
+  s = engine.buyNotoriete(s);
+  s = engine.buyNotoriete(s);
+  s = engine.buyNotoriete(s);
+  assert.equal(engine.getNotorieteLevel(s), 3);
+  assert.equal(s.reputationPoints, 100 - 5 - 10 - 20);
+  assert.equal(s.reputationPurchased['rep-notoriete-3'], true);
+  assert.ok(Math.abs(engine.getReputationIncomeMult(s) / mult0 - 1.15) < 1e-9);
+  // Sauvegarde puis prestige : les niveaux restent
+  const loaded = sanitizeState(JSON.parse(JSON.stringify(s)));
+  assert.equal(engine.getNotorieteLevel(loaded), 3);
+  loaded.totalEarned = engine.getPrestigeThreshold(loaded);
+  assert.equal(engine.getNotorieteLevel(engine.prestige(loaded)), 3);
+  // Identifiants acceptés par les règles Firebase ($id.length < 40)
+  for (const id of Object.keys(loaded.reputationPurchased)) assert.ok(id.length < 40);
+});
