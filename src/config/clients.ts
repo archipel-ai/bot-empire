@@ -84,7 +84,7 @@ export const CLIENTS: ClientDef[] = [
     sector: 'Santé publique',
     icon: '⚕️',
     bonusPerSecond: 50_000,
-    unlockRateRequired: 300_000,
+    unlockRateRequired: 120_000,  // audit : 300 000 ; abaissé pour qu'il signe aussi pendant la 3e partie d'un joueur pressé
     unlockDialogue: 'EuroSanté signe ! 40 hôpitaux, des données sensibles, zéro droit à l\'erreur.',
     minPrestige: 2,
   },
