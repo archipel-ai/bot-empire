@@ -6,6 +6,9 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { GameEngine } from '../src/core/GameEngine.ts';
 import { createInitialState, sanitizeState, MAX_AMOUNT } from '../src/core/GameState.ts';
+import { AGENTS } from '../src/config/agents.ts';
+
+const AGENTS_BY_ID = Object.fromEntries(AGENTS.map(a => [a.id, a]));
 
 const engine = new GameEngine();
 
@@ -43,7 +46,7 @@ test('sanitizeState plafonne un nombre trop grand au lieu de le remettre à 0', 
 });
 
 test("paliers d'équipe : ×1,5 à 25, 50, 100 et 200 agents", async () => {
-  const { getTeamTier, getTeamTierMultiplier, getNextTeamTier, AGENTS } = await import('../src/config/agents.ts');
+  const { getTeamTier, getTeamTierMultiplier, getNextTeamTier } = await import('../src/config/agents.ts');
   assert.equal(getTeamTier(24), 0);
   assert.equal(getTeamTier(25), 1);
   assert.equal(getTeamTier(199), 3);
@@ -58,4 +61,106 @@ test("paliers d'équipe : ×1,5 à 25, 50, 100 et 200 agents", async () => {
   s.agents[def.id] = { count: 25 };
   const at25 = engine.getAgentProduction(s, def);
   assert.ok(Math.abs(at25 / at24 - (25 / 24) * 1.5) < 1e-9);
+});
+
+/** Sauvegarde au format 1.0 (avant la 1.1) : seuls les ids de l'époque. */
+function saveV10(): Record<string, unknown> {
+  return {
+    currency: 18_000, totalEarned: 160_000, prestigeCount: 1, lastSave: 1_700_000_000_000, reputationPoints: 2,
+    agents: { 'bot-workflows': { count: 30 }, 'agent-copy': { count: 26 }, 'agent-analytics': { count: 20 } },
+    clientsUnlocked: { 'restaurant-local': true, 'cabinet-medical': true },
+    upgradesPurchased: { 'api-rate-x2': true, 'click-boost': true },
+    reputationPurchased: { 'rep-start-bonus': true },
+  };
+}
+
+test('une sauvegarde 1.0 se charge sans perte et reçoit les nouvelles clés', () => {
+  const s = sanitizeState(saveV10());
+  assert.equal(s.currency, 18_000);
+  assert.equal(s.agents['bot-workflows']!.count, 30);
+  assert.equal(s.clientsUnlocked['cabinet-medical'], true);
+  assert.equal(s.upgradesPurchased['click-boost'], true);
+  assert.equal(s.reputationPurchased['rep-start-bonus'], true);
+  assert.equal(s.agents['agent-rag']!.count, 0);
+  assert.equal(s.agents['agent-voice']!.count, 0);
+  assert.equal(s.clientsUnlocked['banque-nova'], false);
+  assert.equal(s.upgradesPurchased['copilote'], false);
+});
+
+test('les nouvelles clés survivent à un aller-retour JSON (sauvegarde locale et cloud)', () => {
+  const s = sanitizeState(saveV10());
+  s.agents['agent-rag'] = { count: 7 };
+  s.clientsUnlocked['banque-nova'] = true;
+  s.upgradesPurchased['orchestration'] = true;
+  const back = sanitizeState(JSON.parse(JSON.stringify(s)));
+  assert.equal(back.agents['agent-rag']!.count, 7);
+  assert.equal(back.clientsUnlocked['banque-nova'], true);
+  assert.equal(back.upgradesPurchased['orchestration'], true);
+  // Aucun champ de premier niveau ajouté (règles Firebase : saves/$uid/v1 refuse le reste)
+  assert.deepEqual(Object.keys(back).sort(), ['agents', 'clientsUnlocked', 'currency', 'lastSave', 'prestigeCount',
+    'reputationPoints', 'reputationPurchased', 'totalEarned', 'upgradesPurchased']);
+});
+
+test('nouveaux marchés : agents, clients et améliorations bloqués avant le prestige requis', () => {
+  const s = { ...createInitialState(), currency: 1e12, totalEarned: 1e12 };
+  assert.equal(engine.canBuyAgent(s, 'agent-rag'), false);
+  assert.equal(engine.getAffordableAgentCount(s, 'agent-rag'), 0);
+  assert.equal(engine.buyAgent(s, 'agent-rag'), s);
+  s.agents['agent-supervisor'] = { count: 20 };
+  assert.equal(engine.isUpgradeVisible(s, 'clients-recurrents'), false);
+  assert.equal(engine.canBuyUpgrade(s, 'orchestration'), false);
+  // Production démesurée : BanqueNova ne signe pas tant que prestige < 1
+  s.agents['agent-supervisor'] = { count: 400 };
+  assert.equal(engine.tick(s, 0.1).state.clientsUnlocked['banque-nova'], false);
+
+  const p1 = { ...s, prestigeCount: 1 };
+  assert.equal(engine.canBuyAgent(p1, 'agent-rag'), true);
+  assert.equal(engine.canBuyAgent(p1, 'agent-voice'), false);
+  assert.equal(engine.isUpgradeVisible(p1, 'clients-recurrents'), true);
+  assert.equal(engine.tick(p1, 0.1).state.clientsUnlocked['banque-nova'], true);
+  assert.equal(engine.tick(p1, 0.1).state.clientsUnlocked['eurosante'], false);
+  assert.equal(engine.canBuyAgent({ ...s, prestigeCount: 3 }, 'agent-voice'), true);
+});
+
+test('Copilote : le clic rapporte en plus 2 % de la production des agents', () => {
+  const s = createInitialState();
+  s.agents['agent-analytics'] = { count: 10 };
+  const before = engine.getClickValue(s);
+  s.upgradesPurchased['copilote'] = true;
+  const after = engine.getClickValue(s);
+  assert.ok(Math.abs(after - before - 0.02 * engine.getAgentRate(s)) < 1e-9);
+});
+
+test('Clients récurrents ×2 et Orchestration +1 % par Supervisor', () => {
+  const s = createInitialState();
+  s.prestigeCount = 1;
+  s.clientsUnlocked['restaurant-local'] = true;
+  const bonus = engine.getClientBonus(s);
+  s.upgradesPurchased['clients-recurrents'] = true;
+  assert.equal(engine.getClientBonus(s), bonus * 2);
+
+  s.agents['bot-workflows'] = { count: 10 };
+  s.agents['agent-supervisor'] = { count: 10 };
+  const def = (id: string) => ({ ...AGENTS_BY_ID[id]! });
+  const wf = engine.getAgentProduction(s, def('bot-workflows'));
+  const sup = engine.getAgentProduction(s, def('agent-supervisor'));
+  s.upgradesPurchased['orchestration'] = true;
+  assert.ok(Math.abs(engine.getAgentProduction(s, def('bot-workflows')) / wf - 1.1) < 1e-9);
+  assert.equal(engine.getAgentProduction(s, def('agent-supervisor')), sup); // pas sur lui-même
+});
+
+test('prestige : la réputation survit, les nouveaux marchés repartent de zéro', () => {
+  const s = sanitizeState(saveV10());
+  s.totalEarned = engine.getPrestigeThreshold(s);
+  s.agents['agent-rag'] = { count: 12 };
+  s.upgradesPurchased['memoire-partagee'] = true;
+  s.reputationPurchased['rep-click-x2'] = true;
+  const p = engine.prestige(s);
+  assert.equal(p.prestigeCount, 2);
+  assert.equal(p.agents['agent-rag']!.count, 0);
+  assert.equal(p.upgradesPurchased['memoire-partagee'], false);
+  assert.equal(p.reputationPurchased['rep-start-bonus'], true);
+  assert.equal(p.reputationPurchased['rep-click-x2'], true);
+  assert.ok(p.reputationPoints > s.reputationPoints);
+  assert.deepEqual(Object.keys(p.agents).sort(), Object.keys(s.agents).sort());
 });

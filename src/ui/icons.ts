@@ -3,6 +3,8 @@
  * dans l'interface. Grille 24 × 24, dessinés pour le jeu.
  */
 
+import type { UpgradeEffect } from '../config/upgrades.ts';
+
 const PATHS = {
   // Agents
   workflow:   '<circle cx="5" cy="6" r="2.2"/><circle cx="19" cy="6" r="2.2"/><circle cx="12" cy="18" r="2.2"/><path d="M7.2 6h9.6M6.2 7.9l4.6 8.2M17.8 7.9l-4.6 8.2"/>',
@@ -12,6 +14,8 @@ const PATHS = {
   scale:      '<path d="M12 4v16M8 20h8M5 7h14"/><path d="M5 7l-2.5 6a3 3 0 0 0 5 0z"/><path d="M19 7l-2.5 6a3 3 0 0 0 5 0z"/>',
   megaphone:  '<path d="M4 10v4h3l8 4V6l-8 4z"/><path d="M7 14l1.5 5h2.5l-1-4.4"/><path d="M18.5 9.5a3.5 3.5 0 0 1 0 5"/>',
   compass:    '<circle cx="12" cy="12" r="8.5"/><path d="M15.5 8.5l-2 5-5 2 2-5z"/>',
+  database:   '<path d="M5 6c0-1.7 3.1-3 7-3s7 1.3 7 3-3.1 3-7 3-7-1.3-7-3z"/><path d="M5 6v12c0 1.7 3.1 3 7 3s7-1.3 7-3V6"/><path d="M5 12c0 1.7 3.1 3 7 3s7-1.3 7-3"/>',
+  phone:      '<path d="M6.5 3.5h3l1.5 4.5-2 1.5a11 11 0 0 0 5.5 5.5l1.5-2 4.5 1.5v3a2 2 0 0 1-2 2A16 16 0 0 1 4.5 5.5a2 2 0 0 1 2-2z"/>',
   // Clients
   cup:        '<path d="M5 9h11v5a5 5 0 0 1-5 5h-1a5 5 0 0 1-5-5z"/><path d="M16 10.5h1.5a2.5 2.5 0 0 1 0 5H16"/><path d="M8.5 3.5c0 1.5 1.5 1.5 1.5 3M12.5 3.5c0 1.5 1.5 1.5 1.5 3"/>',
   pulse:      '<path d="M3 12h4l2-5 4 10 2-5h6"/>',
@@ -19,6 +23,8 @@ const PATHS = {
   bed:        '<path d="M3 18V7M21 18v-5H3"/><path d="M3 13h18"/><path d="M7 13v-2.5a1.5 1.5 0 0 1 1.5-1.5H11v4"/>',
   tower:      '<path d="M6 21V5l7-2v18M13 8l5 2v11M4 21h16"/><path d="M9 8h1M9 12h1M9 16h1M15.5 13h0.5M15.5 17h0.5"/>',
   columns:    '<path d="M3 9l9-5 9 5z"/><path d="M5 9v9M9.7 9v9M14.3 9v9M19 9v9M3 21h18M4 18h16"/>',
+  vault:      '<rect x="3.5" y="5" width="17" height="14" rx="2"/><circle cx="12" cy="12" r="3.5"/><path d="M12 8.5V7M12 17v-1.5M15.5 12H17M7 12h1.5M6 19v1.5M18 19v1.5"/>',
+  health:     '<path d="M9.5 3.5h5v6h6v5h-6v6h-5v-6h-6v-5h6z"/>',
   // Onglets
   agents:     '<rect x="5" y="8" width="14" height="11" rx="3"/><path d="M12 8V5"/><circle cx="12" cy="4" r="1"/><circle cx="9.5" cy="13" r="1"/><circle cx="14.5" cy="13" r="1"/><path d="M2.5 12v3M21.5 12v3"/>',
   handshake:  '<path d="M2.5 11l3.5-4 4 1.5 3-1.5 4.5 1 4 3"/><path d="M6 7l-1 7 5 5 2-1"/><path d="M18 9l1 5-5 5-2-2"/><path d="M10 8.5l3.5 3.5M12 14l2 2M10 16l1.5 1.5"/>',
@@ -82,6 +88,8 @@ export const AGENT_ICONS: Record<string, IconName> = {
   'agent-legal':      'scale',
   'agent-growth':     'megaphone',
   'agent-supervisor': 'compass',
+  'agent-rag':        'database',
+  'agent-voice':      'phone',
 };
 
 /** Pictogramme de chaque client. */
@@ -92,6 +100,8 @@ export const CLIENT_ICONS: Record<string, IconName> = {
   'groupe-hotelier':  'bed',
   'grand-compte':     'tower',
   'gouvernement':     'columns',
+  'banque-nova':      'vault',
+  'eurosante':        'health',
 };
 
 /** Pictogramme de chaque avantage de réputation. */
@@ -107,9 +117,11 @@ export const PERK_ICONS: Record<string, IconName> = {
 };
 
 /** Pictogramme d'un upgrade, d'après la nature de son effet. */
-export function upgradeIcon(effectType: 'agent_multiplier' | 'global_multiplier' | 'click_multiplier', agentId?: string): IconName {
-  if (effectType === 'click_multiplier') return 'cursor';
+export function upgradeIcon(effectType: UpgradeEffect['type'], agentId?: string): IconName {
+  if (effectType === 'click_multiplier' || effectType === 'click_share') return 'cursor';
   if (effectType === 'global_multiplier') return 'trendUp';
+  if (effectType === 'client_multiplier') return 'handshake';
+  if (effectType === 'synergy') return 'link';
   return (agentId && AGENT_ICONS[agentId]) || 'chip';
 }
 

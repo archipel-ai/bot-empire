@@ -188,7 +188,14 @@ export class Renderer {
 
   // ─── PROGRESSION ───────────────────────────────────────────
 
+  /** Condition affichée sur un objet réservé aux parties après un prestige. */
+  private prestigeLockText(minPrestige: number | undefined): string {
+    const n = minPrestige ?? 0;
+    return n <= 1 ? t('locked.prestige1') : t('locked.prestigeN', { n });
+  }
+
   private isAgentRevealed(state: GameState, agentId: string): boolean {
+    if (!this.engine.isAgentAvailable(state, agentId)) return false; // nouveaux marchés : silhouette jusqu'au prestige requis
     if ((state.agents[agentId]?.count ?? 0) > 0) return true;
     if (AGENTS[0]?.id === agentId) return true; // le premier agent montre au joueur quoi viser
     // totalEarned ne fait que monter pendant une partie : un objet dévoilé le reste
@@ -197,6 +204,7 @@ export class Renderer {
 
   private isClientRevealed(state: GameState, clientId: string, agentRate: number): boolean {
     if (state.clientsUnlocked[clientId]) return true;
+    if (!this.engine.isClientAvailable(state, clientId)) return false;
     const def = CLIENTS.find(c => c.id === clientId)!;
     return agentRate >= def.unlockRateRequired * REVEAL_SHARE;
   }
@@ -218,7 +226,7 @@ export class Renderer {
 
   /** Barre « Prochain client » : production des agents rapportée au seuil réel du prochain client. */
   private updateNextClient(state: GameState): void {
-    const next = CLIENTS.find(c => !state.clientsUnlocked[c.id]);
+    const next = CLIENTS.find(c => !state.clientsUnlocked[c.id] && this.engine.isClientAvailable(state, c.id));
     if (!next) {
       this.elNextLabel.textContent = t('header.allClients');
       this.elNextFill.style.width = '100%';
@@ -279,7 +287,7 @@ export class Renderer {
             <div class="agent-icon" aria-hidden="true">?</div>
             <div class="agent-info">
               <div class="agent-name">???</div>
-              <div class="agent-desc">${t('reveal.hint')}</div>
+              <div class="agent-desc agent-lock">${this.engine.isAgentAvailable(state, def.id) ? t('reveal.hint') : this.prestigeLockText(def.minPrestige)}</div>
             </div>
             <div class="agent-right">
               <div class="agent-count">${count}</div>
@@ -356,7 +364,9 @@ export class Renderer {
             <div class="client-icon" aria-hidden="true">?</div>
             <div class="client-info">
               <div class="client-name">???</div>
-              <div class="client-unlock">${t('client.unlockAt', { rate: formatRate(def.unlockRateRequired) })}</div>
+              <div class="client-unlock">${this.engine.isClientAvailable(state, def.id)
+                ? t('client.unlockAt', { rate: formatRate(def.unlockRateRequired) })
+                : this.prestigeLockText(def.minPrestige)}</div>
             </div>
             <span class="client-badge locked">${icon('lock')}${t('client.locked')}</span>
           </div>

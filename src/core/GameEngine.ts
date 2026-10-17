@@ -1,4 +1,4 @@
-import { type GameState, MAX_AMOUNT } from './GameState.ts';
+import { type GameState, MAX_AMOUNT, createInitialState } from './GameState.ts';
 import { AGENTS, type AgentDef, getTeamTierMultiplier } from '../config/agents.ts';
 import { CLIENTS } from '../config/clients.ts';
 import { UPGRADES } from '../config/upgrades.ts';
@@ -47,16 +47,46 @@ export class GameEngine {
     }, 1);
   }
 
+  /** Synergies achetées (ex. Orchestration) : chaque agent source renforce les autres types. */
+  getSynergyMultiplier(state: GameState, agentId: string): number {
+    return UPGRADES.reduce((acc, u) => {
+      if (!state.upgradesPurchased[u.id] || u.effect.type !== 'synergy' || u.effect.sourceAgentId === agentId) return acc;
+      const sources = state.agents[u.effect.sourceAgentId]?.count ?? 0;
+      return acc * (1 + u.effect.perUnit * sources);
+    }, 1);
+  }
+
   getAgentProduction(state: GameState, def: AgentDef): number {
     const count = state.agents[def.id]?.count ?? 0;
     if (count === 0) return 0;
     const agentMult = this.getAgentMultiplier(state, def.id);
-    return def.baseProduction * count * agentMult * getTeamTierMultiplier(count);
+    return def.baseProduction * count * agentMult * getTeamTierMultiplier(count)
+      * this.getSynergyMultiplier(state, def.id);
+  }
+
+  /** Multiplicateur des bonus clients (ex. Clients récurrents). */
+  getClientMultiplier(state: GameState): number {
+    return UPGRADES.reduce((acc, u) =>
+      state.upgradesPurchased[u.id] && u.effect.type === 'client_multiplier' ? acc * u.effect.multiplier : acc, 1);
   }
 
   getClientBonus(state: GameState): number {
     return CLIENTS.filter(c => state.clientsUnlocked[c.id])
-      .reduce((acc, c) => acc + c.bonusPerSecond, 0);
+      .reduce((acc, c) => acc + c.bonusPerSecond, 0) * this.getClientMultiplier(state);
+  }
+
+  // ─── NOUVEAUX MARCHÉS (réservés aux parties après un prestige) ─
+
+  /** L'agent peut-il être recruté dans cette partie (prestiges requis atteints) ? */
+  isAgentAvailable(state: GameState, agentId: string): boolean {
+    const def = AGENTS.find(a => a.id === agentId);
+    return !!def && state.prestigeCount >= (def.minPrestige ?? 0);
+  }
+
+  /** Le client peut-il signer dans cette partie (prestiges requis atteints) ? */
+  isClientAvailable(state: GameState, clientId: string): boolean {
+    const def = CLIENTS.find(c => c.id === clientId);
+    return !!def && state.prestigeCount >= (def.minPrestige ?? 0);
   }
 
   getTotalRate(state: GameState, marketMult = 1): number {
@@ -88,6 +118,12 @@ export class GameEngine {
 
   // ─── CLIC ──────────────────────────────────────────────────
 
+  /** Part de la production des agents ajoutée à chaque clic (Copilote : 0.02). */
+  getClickShare(state: GameState): number {
+    return UPGRADES.reduce((acc, u) =>
+      state.upgradesPurchased[u.id] && u.effect.type === 'click_share' ? acc + u.effect.share : acc, 0);
+  }
+
   getClickValue(state: GameState, marketClickMult = 1): number {
     const clickMult = UPGRADES.filter(u =>
       state.upgradesPurchased[u.id] && u.effect.type === 'click_multiplier'
@@ -96,7 +132,10 @@ export class GameEngine {
     }, 1);
     const prestigeMult = this.getPrestigeMultiplier(state);
     const repClickMult = this.getReputationClickMult(state);
-    return BASE_CLICK_VALUE * clickMult * prestigeMult * repClickMult * marketClickMult;
+    const base = BASE_CLICK_VALUE * clickMult * prestigeMult * repClickMult;
+    const share = this.getClickShare(state);
+    const copilot = share > 0 ? share * this.getAgentRate(state) : 0;
+    return (base + copilot) * marketClickMult;
   }
 
   click(state: GameState, marketClickMult = 1): GameState {
@@ -127,7 +166,7 @@ export class GameEngine {
   }
 
   canBuyAgent(state: GameState, agentId: string): boolean {
-    return state.currency >= this.getAgentCost(state, agentId);
+    return this.isAgentAvailable(state, agentId) && state.currency >= this.getAgentCost(state, agentId);
   }
 
   buyAgent(state: GameState, agentId: string): GameState {
@@ -154,6 +193,7 @@ export class GameEngine {
 
   /** Nombre d'agents qu'on peut acheter d'affilée avec la trésorerie actuelle (plafonné). */
   getAffordableAgentCount(state: GameState, agentId: string): number {
+    if (!this.isAgentAvailable(state, agentId)) return 0;
     const def = AGENTS.find(a => a.id === agentId)!;
     let price = this.getAgentCost(state, agentId);
     let budget = state.currency;
@@ -181,6 +221,7 @@ export class GameEngine {
 
   isUpgradeVisible(state: GameState, upgradeId: string): boolean {
     const def = UPGRADES.find(u => u.id === upgradeId)!;
+    if (state.prestigeCount < (def.minPrestige ?? 0)) return false; // invisible avant le prestige requis
     if (!def.requiresAgentId) return true;
     const count = state.agents[def.requiresAgentId]?.count ?? 0;
     return count >= (def.requiresAgentCount ?? 1);
@@ -213,7 +254,7 @@ export class GameEngine {
     const agentRate = this.getAgentRate(state);
     const newClientStates = { ...state.clientsUnlocked };
     CLIENTS.forEach(c => {
-      if (!newClientStates[c.id] && agentRate >= c.unlockRateRequired) {
+      if (!newClientStates[c.id] && agentRate >= c.unlockRateRequired && state.prestigeCount >= (c.minPrestige ?? 0)) {
         newClientStates[c.id] = true;
       }
     });
@@ -267,13 +308,16 @@ export class GameEngine {
     const earnedRP         = this.getPrestigeRP(state);
     const startBonus       = this.getReputationStartBonus(state);
 
+    // Agents, clients et améliorations repartent de zéro, avec tous les ids de la config
+    // (y compris ceux des nouveaux marchés) ; seule la réputation survit.
+    const blank = createInitialState();
     const fresh: GameState = {
       currency:          startBonus,
       totalEarned:       startBonus,
       prestigeCount:     newPrestigeCount,
-      agents:            Object.fromEntries(Object.keys(state.agents).map(id => [id, { count: 0 }])),
-      clientsUnlocked:   Object.fromEntries(Object.keys(state.clientsUnlocked).map(id => [id, false])),
-      upgradesPurchased: Object.fromEntries(Object.keys(state.upgradesPurchased).map(id => [id, false])),
+      agents:            blank.agents,
+      clientsUnlocked:   blank.clientsUnlocked,
+      upgradesPurchased: blank.upgradesPurchased,
       lastSave:          Date.now(),
       // Réputation : survit au prestige
       reputationPoints:    (state.reputationPoints ?? 0) + earnedRP,

@@ -16,6 +16,7 @@ import { IncidentSystem, type IncidentQuestion } from './systems/IncidentSystem.
 import { Hints } from './ui/Hints.ts';
 import { Drawer } from './ui/Drawer.ts';
 import { CLIENTS } from './config/clients.ts';
+import { UPGRADES } from './config/upgrades.ts';
 import { CloudSave } from './core/CloudSave.ts';
 import { FIREBASE_CONFIG, CLOUD_SAVE_ENABLED } from './config/firebase.ts';
 import { ContractSystem, type ActiveContract } from './systems/ContractSystem.ts';
@@ -116,6 +117,7 @@ let incidentResolved     = false;
 let incidentOfferLeft    = 0;   // secondes avant que la notification d'incident ne disparaisse
 let incidentNotice: HTMLElement | null = null;
 const INCIDENT_OFFER_DURATION = 90; // l'offre reste visible 90 s, sans pénalité si ignorée
+const NEW_MARKETS_DELAY_MS    = 3_200; // bandeau « nouveaux marchés » après l'animation de prestige
 
 // Éléments ÉCHO
 const btnEcho       = document.getElementById('btn-echo')     as HTMLButtonElement;
@@ -511,7 +513,21 @@ document.getElementById('btn-prestige-confirm')!.addEventListener('click', () =>
   flashScreen('ambre', 12);
   notify(t('prestige.done', { rp: rpGained }), 'purple');
   renderReputation();
+  announceNewMarkets(state.prestigeCount);
 });
+
+/** Contenu qui s'ouvre exactement à ce nombre de prestiges : bandeau sur la scène + notification. */
+function announceNewMarkets(prestigeCount: number): void {
+  const names = [
+    ...AGENTS.filter(a => (a.minPrestige ?? 0) === prestigeCount).map(a => a.name),
+    ...CLIENTS.filter(c => (c.minPrestige ?? 0) === prestigeCount).map(c => c.name),
+    ...UPGRADES.filter(u => (u.minPrestige ?? 0) === prestigeCount).map(u => u.name),
+  ];
+  if (prestigeCount === 0 || !names.length) return;
+  notifyMilestone(t('markets.list', { list: names.join(', ') }));
+  // Après la vague d'encre du prestige
+  setTimeout(() => bureau.announce(t('markets.kicker'), names.slice(0, 2).join(' · '), names.slice(2).join(' · ')), NEW_MARKETS_DELAY_MS);
+}
 
 document.getElementById('btn-prestige-cancel')!.addEventListener('click', () => {
   closeModal('prestige-overlay');

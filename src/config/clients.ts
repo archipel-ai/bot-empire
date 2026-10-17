@@ -6,6 +6,8 @@ export interface ClientDef {
   bonusPerSecond: number;
   unlockRateRequired: number; // production des agents seuls (€/s, hors bonus clients)
   unlockDialogue: string; // Message affiché quand le client signe
+  /** Nombre de prestiges requis avant que ce client puisse signer (0 par défaut). */
+  minPrestige?: number;
 }
 
 // Seuils calés par simulation (joueur glouton, 1 à 3 clics/s) : 1er client vers 1 min,
@@ -64,5 +66,26 @@ export const CLIENTS: ClientDef[] = [
     bonusPerSecond: 2_000,        // était 500
     unlockRateRequired: 15_000,
     unlockDialogue: 'MinisteIA valide le marché ! L\'État fait confiance à ton agence. Historique.',
+  },
+  // ── Nouveaux marchés : réservés aux parties après une vente de l'agence ──
+  {
+    id: 'banque-nova',
+    name: 'BanqueNova',
+    sector: 'Finance',
+    icon: '🏦',
+    bonusPerSecond: 10_000,
+    unlockRateRequired: 60_000,
+    unlockDialogue: 'BanqueNova signe ! "Nos conseillers veulent un assistant qui cite chaque règle interne."',
+    minPrestige: 1,
+  },
+  {
+    id: 'eurosante',
+    name: 'EuroSanté',
+    sector: 'Santé publique',
+    icon: '⚕️',
+    bonusPerSecond: 50_000,
+    unlockRateRequired: 300_000,
+    unlockDialogue: 'EuroSanté signe ! 40 hôpitaux, des données sensibles, zéro droit à l\'erreur.',
+    minPrestige: 2,
   },
 ];

@@ -22,6 +22,8 @@ const EN_AGENTS: Record<string, { name: string; description: string }> = {
   'agent-legal':      { name: 'Legal Agent',      description: 'Terms, GDPR, compliance — opens public tenders' },
   'agent-growth':     { name: 'Growth Agent',     description: 'Cold outreach, partnerships, large-scale distribution' },
   'agent-supervisor': { name: 'Supervisor Agent', description: 'Orchestrates every agent at scale' },
+  'agent-rag':        { name: 'RAG Agent',        description: 'Searches client knowledge bases and cites its sources' },
+  'agent-voice':      { name: 'Voice Agent',      description: 'Answers calls, books appointments and sums up every call' },
 };
 
 const EN_CLIENTS: Record<string, { name: string; sector: string; unlockDialogue: string }> = {
@@ -31,6 +33,8 @@ const EN_CLIENTS: Record<string, { name: string; sector: string; unlockDialogue:
   'groupe-hotelier':  { name: 'PalmHôtel Group',  sector: 'Hospitality & Luxury', unlockDialogue: 'PalmHôtel Group confirms! "Fully automate the virtual concierge."' },
   'grand-compte':     { name: 'GigaSoft Corp.',   sector: 'Big Tech',             unlockDialogue: 'GigaSoft Corp. joins the empire! Unlimited budget. Flawless execution expected.' },
   'gouvernement':     { name: 'GovAI',            sector: 'Public sector',        unlockDialogue: 'GovAI awards the contract! The State trusts your agency. Historic.' },
+  'banque-nova':      { name: 'BanqueNova',       sector: 'Finance',              unlockDialogue: 'BanqueNova signs! "Our advisers want an assistant that cites every internal rule."' },
+  'eurosante':        { name: 'EuroSanté',        sector: 'Public health',        unlockDialogue: 'EuroSanté signs! 40 hospitals, sensitive data, zero room for error.' },
 };
 
 const EN_UPGRADES: Record<string, { name: string; description: string; effectLabel: string }> = {
@@ -42,6 +46,11 @@ const EN_UPGRADES: Record<string, { name: string; description: string; effectLab
   'ai-sovereignty':   { name: 'Sovereign AI',               description: 'Your agency becomes a national AI reference',      effectLabel: 'All income ×3' },
   'n8n-enterprise':   { name: 'n8n Enterprise License',     description: 'Workflows run with no speed limits',               effectLabel: 'Workflow Bot ×4' },
   'mcp-protocol':     { name: 'Full-Stack MCP Protocol',    description: 'All your agents talk to each other in real time',  effectLabel: 'All income ×2' },
+  'copilote':         { name: 'Copilot',                    description: 'The founder works alongside the agents: every manual task taps into their output', effectLabel: 'Click + 2% of agent income' },
+  'clients-recurrents': { name: 'Recurring clients',        description: 'Signed deals turn into subscriptions',             effectLabel: 'Client bonuses ×2' },
+  'orchestration':    { name: 'Orchestration',              description: 'Supervisors spread the work across every agent',   effectLabel: '+1% per Supervisor for other agents' },
+  'memoire-partagee': { name: 'Shared memory',              description: 'Every project feeds a single knowledge base',      effectLabel: 'RAG Agent ×2' },
+  'standard-ia':      { name: 'AI switchboard',             description: 'A phone switchboard that never sleeps',            effectLabel: 'Voice Agent ×3' },
 };
 
 const EN_PERKS: Record<string, { name: string; description: string }> = {
@@ -206,6 +215,8 @@ const EN_AGENT_LINES: Record<string, string[]> = {
   'agent-legal':      ['terms updated', 'clause approved', 'DPA drafted', 'quote sent', 'contract reviewed', 'GDPR register kept'],
   'agent-growth':     ['+500 leads', 'follow-up #2 sent', 'partner signed', 'pipeline full', 'demo booked', 'campaign live'],
   'agent-supervisor': ["today's priorities", 'team review', 'delivery approved', 'workload balanced', 'target reached', 'agents in sync'],
+  'agent-rag':        ['vector index updated', '1,200 docs ingested', 'source cited', 'chunk #48 found', 'knowledge base grown', 'grounded answer'],
+  'agent-voice':      ['call answered', 'appointment booked', 'transcript ready', 'switchboard open 24/7', 'callback scheduled', 'call summarised'],
 };
 
 /** Remplace en place les textes de contenu par leur version anglaise (sans effet en français). */

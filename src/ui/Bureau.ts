@@ -53,6 +53,8 @@ export const AGENT_LINES: Record<string, string[]> = {
   'agent-legal':      ['CGV mises à jour', 'clause validée', 'DPA rédigé', 'devis envoyé', 'contrat relu', 'registre RGPD tenu'],
   'agent-growth':     ['+500 prospects', 'relance n°2 partie', 'partenaire signé', 'pipeline plein', 'démo réservée', 'campagne lancée'],
   'agent-supervisor': ['priorités du jour', "revue d'équipe", 'livraison validée', 'charge rééquilibrée', 'objectif atteint', 'agents synchronisés'],
+  'agent-rag':        ['index vectoriel à jour', '1 200 docs ingérés', 'source citée', 'passage n°48 trouvé', 'base de savoir enrichie', 'réponse sourcée'],
+  'agent-voice':      ['appel décroché', 'rendez-vous pris', 'transcription prête', 'standard ouvert 24 h/24', 'rappel programmé', 'appel résumé'],
 };
 
 // ─── RÉGLAGES ─────────────────────────────────────────────────
@@ -61,7 +63,7 @@ export const AGENT_LINES: Record<string, string[]> = {
 const STAGE_EXTENT   = [1.7, 2.6, 3.2, 3.6, 4.1, 4.6];
 const CELL           = 2.2;           // écart entre deux postes
 /** Place de chaque type d'agent autour du fondateur, dans l'ordre de AGENTS. */
-const POST_CELLS: Array<[number, number]> = [[1, 0], [0, 1], [-1, 0], [0, -1], [1, 1], [-1, -1], [1, -1]];
+const POST_CELLS: Array<[number, number]> = [[1, 0], [0, 1], [-1, 0], [0, -1], [1, 1], [-1, -1], [1, -1], [-1, 1], [2, 0]];
 const POST_HALF      = 0.62;          // demi-côté d'un socle
 const POST_HEIGHT    = 26;            // hauteur d'un socle (1/60 de S)
 const FOUNDER_HALF   = 0.78;
@@ -279,10 +281,15 @@ export class Bureau {
   }
 
   private showBanner(stage: BureauStage): void {
+    this.announce(t('bureau.newSpace'), stage.label, stage.sublabel);
+  }
+
+  /** Bandeau sobre sur la scène : surtitre, titre, sous-titre (étape franchie, nouveaux marchés). */
+  announce(kicker: string, title: string, sub: string): void {
     this.banner.innerHTML = '<span class="bureau-banner-kicker"></span><strong></strong><span class="bureau-banner-sub"></span>';
-    this.banner.querySelector('.bureau-banner-kicker')!.textContent = t('bureau.newSpace');
-    this.banner.querySelector('strong')!.textContent = stage.label;
-    this.banner.querySelector('.bureau-banner-sub')!.textContent = stage.sublabel;
+    this.banner.querySelector('.bureau-banner-kicker')!.textContent = kicker;
+    this.banner.querySelector('strong')!.textContent = title;
+    this.banner.querySelector('.bureau-banner-sub')!.textContent = sub;
     this.banner.classList.remove('hidden', 'leaving');
     if (this.bannerTimer) clearTimeout(this.bannerTimer);
     this.bannerTimer = setTimeout(() => {

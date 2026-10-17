@@ -6,6 +6,8 @@ export interface AgentDef {
   baseCost: number;
   baseProduction: number; // €/s par unité
   costMultiplier: number;
+  /** Nombre de prestiges requis avant de pouvoir recruter cet agent (0 par défaut). */
+  minPrestige?: number;
 }
 
 /**
@@ -93,5 +95,26 @@ export const AGENTS: AgentDef[] = [
     baseCost: 1_000_000,
     baseProduction: 800,      // était 300
     costMultiplier: 1.13,
+  },
+  // ── Nouveaux marchés : réservés aux parties après une vente de l'agence ──
+  {
+    id: 'agent-rag',
+    name: 'Agent RAG',
+    description: 'Interroge la base de savoir des clients et cite ses sources',
+    icon: '📚',
+    baseCost: 12_000_000,
+    baseProduction: 4_000,
+    costMultiplier: 1.13,
+    minPrestige: 1,
+  },
+  {
+    id: 'agent-voice',
+    name: 'Agent Voix',
+    description: 'Décroche, prend les rendez-vous et résume chaque appel',
+    icon: '📞',
+    baseCost: 150_000_000,
+    baseProduction: 30_000,
+    costMultiplier: 1.13,
+    minPrestige: 3,
   },
 ];
