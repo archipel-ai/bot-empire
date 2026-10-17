@@ -13,6 +13,7 @@ export interface EchoState {
   replayRemaining: number;   // secondes restantes en mode replay
   cooldownRemaining: number; // secondes restantes de cooldown
   clicksRecorded: number;    // nombre de clics enregistrés
+  replayDuration: number;    // durée totale d'un rejeu (s)
 }
 
 const RECORD_WINDOW_MS  = 30_000; // on mémorise les 30 dernières secondes
@@ -30,11 +31,17 @@ export class EchoSystem {
   private replayIdx          = 0;
   private nextClickIn        = 0; // secondes avant le prochain clic auto
   private cooldownMultiplier = 1; // modifié par la réputation
+  private replayDuration     = REPLAY_DURATION_S; // 90 s avec la leçon « Pour qui j'écris ? »
 
   // ─── API PUBLIQUE ────────────────────────────────────────────
 
   setCooldownMultiplier(mult: number): void {
     this.cooldownMultiplier = mult;
+  }
+
+  /** Durée d'un rejeu (Academy). */
+  setReplayDuration(seconds: number): void {
+    this.replayDuration = seconds;
   }
 
   /** Appelé à chaque clic manuel du joueur. */
@@ -57,7 +64,7 @@ export class EchoSystem {
   activate(): void {
     if (!this.canActivate()) return;
     this.active      = true;
-    this.replayTimer = REPLAY_DURATION_S;
+    this.replayTimer = this.replayDuration;
     this.replayIdx   = 0;
     // Premier clic auto : délai médian des intervalles enregistrés
     const med = this.intervals.length > 0
@@ -105,6 +112,7 @@ export class EchoSystem {
       replayRemaining:   Math.ceil(this.replayTimer),
       cooldownRemaining: Math.ceil(this.cooldownTimer),
       clicksRecorded:    this.clickTimestamps.length,
+      replayDuration:    this.replayDuration,
     };
   }
 }

@@ -2,6 +2,7 @@ import { AGENTS } from '../config/agents.ts';
 import { CLIENTS } from '../config/clients.ts';
 import { UPGRADES } from '../config/upgrades.ts';
 import { REPUTATION_PERKS, NOTORIETE_IDS, PRESTIGE_V2_KEY } from '../config/reputationPerks.ts';
+import { ACADEMY_IDS } from '../config/academy.ts';
 
 export interface AgentState {
   count: number;
@@ -35,6 +36,7 @@ export function createInitialState(): GameState {
   NOTORIETE_IDS.forEach(id => { reputationPurchased[id] = false; });
   // Indispensable : une clé non déclarée ici est effacée par sanitizeState au chargement
   reputationPurchased[PRESTIGE_V2_KEY] = false;
+  ACADEMY_IDS.forEach(id => { reputationPurchased[id] = false; }); // leçons de l'Academy (acad-*)
 
   return {
     currency: 0,

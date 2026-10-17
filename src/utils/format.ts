@@ -28,6 +28,14 @@ export function formatCurrency(value: number, decimals = 2): string {
   return n.includes(NBSP) ? `${n}€` : `${n}${NBSP}€`;
 }
 
+/** Prix ou coût fixe, sans zéros inutiles : « 150 € », « 1,5 k€ », « 20 k€ » (anglais : « €1.5K »). */
+export function formatCurrencyCompact(value: number): string {
+  return formatCurrency(value, 2).replace(/([.,])(\d+)/, (_m, sep: string, digits: string) => {
+    const kept = digits.replace(/0+$/, '');
+    return kept ? sep + kept : '';
+  });
+}
+
 /** Multiplicateur court : « ×1,5 », « ×2,25 » (anglais : « ×1.5 »). */
 export function formatMultiplier(value: number): string {
   const s = String(Math.round(value * 100) / 100);

@@ -2,6 +2,7 @@ import { type GameState, MAX_AMOUNT, createInitialState } from './GameState.ts';
 import { AGENTS, type AgentDef, getTeamTierMultiplier } from '../config/agents.ts';
 import { CLIENTS } from '../config/clients.ts';
 import { UPGRADES } from '../config/upgrades.ts';
+import { ACADEMY_LESSONS, LEGACY_ACADEMY_MAP, type AcademyEffect, type AcademyLesson, type LessonCondition } from '../config/academy.ts';
 import {
   REPUTATION_PERKS, getPrestigeRP, NOTORIETE_IDS, NOTORIETE_MAX_LEVEL, NOTORIETE_INCOME_PER_LEVEL, getNotorieteCost,
   PRESTIGE_V2_KEY,
@@ -13,6 +14,7 @@ const LEGACY_PRESTIGE_SCALE   = 1.5;  // seuil 1.1, plafond de transition tant q
 const PRESTIGE_BONUS_PER_LEVEL = 0.15;
 const BASE_CLICK_VALUE         = 1;  // 10 clics pour le premier agent (10 €)
 const MAX_OFFLINE_HOURS        = 8;
+const ECHO_REPLAY_SECONDS      = 60;
 const MAX_BULK_BUY             = 1_000; // garde-fou du mode d'achat « max »
 
 export interface TickResult {
@@ -42,13 +44,16 @@ export class GameEngine {
   }
 
   getAgentMultiplier(state: GameState, agentId: string): number {
-    return UPGRADES.filter(u =>
+    const upgrades = UPGRADES.filter(u =>
       state.upgradesPurchased[u.id] &&
       u.effect.type === 'agent_multiplier' &&
       u.effect.agentId === agentId
     ).reduce((acc, u) => {
       return acc * (u.effect.type === 'agent_multiplier' ? u.effect.multiplier : 1);
     }, 1);
+    const lessons = this.academyEffects(state, 'agent_multiplier')
+      .reduce((acc, e) => e.agentId === agentId ? acc * e.multiplier : acc, 1);
+    return upgrades * lessons;
   }
 
   /** Synergies achetées (ex. Orchestration) : chaque agent source renforce les autres types. */
@@ -71,7 +76,8 @@ export class GameEngine {
   /** Multiplicateur des bonus clients (ex. Clients récurrents). */
   getClientMultiplier(state: GameState): number {
     return UPGRADES.reduce((acc, u) =>
-      state.upgradesPurchased[u.id] && u.effect.type === 'client_multiplier' ? acc * u.effect.multiplier : acc, 1);
+      state.upgradesPurchased[u.id] && u.effect.type === 'client_multiplier' ? acc * u.effect.multiplier : acc, 1)
+      * this.academyEffects(state, 'client_multiplier').reduce((acc, e) => acc * e.multiplier, 1);
   }
 
   getClientBonus(state: GameState): number {
@@ -113,11 +119,12 @@ export class GameEngine {
     return agentProd * this.getIncomeMultiplier(state);
   }
 
-  /** Multiplicateurs permanents de revenu : upgrades globaux × prestige × réputation. */
+  /** Multiplicateurs permanents de revenu : upgrades globaux × prestige × réputation × Academy. */
   private getIncomeMultiplier(state: GameState): number {
     return this.getGlobalUpgradeMultiplier(state)
       * this.getPrestigeMultiplier(state)
-      * this.getReputationIncomeMult(state);
+      * this.getReputationIncomeMult(state)
+      * this.academyEffects(state, 'global_multiplier').reduce((acc, e) => acc * e.multiplier, 1);
   }
 
   // ─── CLIC ──────────────────────────────────────────────────
@@ -125,7 +132,8 @@ export class GameEngine {
   /** Part de la production des agents ajoutée à chaque clic (Copilote : 0.02). */
   getClickShare(state: GameState): number {
     return UPGRADES.reduce((acc, u) =>
-      state.upgradesPurchased[u.id] && u.effect.type === 'click_share' ? acc + u.effect.share : acc, 0);
+      state.upgradesPurchased[u.id] && u.effect.type === 'click_share' ? acc + u.effect.share : acc, 0)
+      + this.academyEffects(state, 'click_share').reduce((acc, e) => acc + e.share, 0);
   }
 
   getClickValue(state: GameState, marketClickMult = 1): number {
@@ -136,7 +144,8 @@ export class GameEngine {
     }, 1);
     const prestigeMult = this.getPrestigeMultiplier(state);
     const repClickMult = this.getReputationClickMult(state);
-    const base = BASE_CLICK_VALUE * clickMult * prestigeMult * repClickMult;
+    const acadClickMult = this.academyEffects(state, 'click_multiplier').reduce((acc, e) => acc * e.multiplier, 1);
+    const base = BASE_CLICK_VALUE * clickMult * prestigeMult * repClickMult * acadClickMult;
     const share = this.getClickShare(state);
     const copilot = share > 0 ? share * this.getAgentRate(state) : 0;
     return (base + copilot) * marketClickMult;
@@ -165,8 +174,13 @@ export class GameEngine {
     const def = AGENTS.find(a => a.id === agentId)!;
     const count = state.agents[agentId]?.count ?? 0;
     const base = def.baseCost * Math.pow(def.costMultiplier, count);
-    const reduction = this.getReputationAgentDiscount(state);
-    return base * (1 - reduction);
+    return base * (1 - this.getAgentDiscount(state));
+  }
+
+  /** Réduction totale du prix des agents : réputation (−20 %) puis Academy (−10 %), cumulées. */
+  getAgentDiscount(state: GameState): number {
+    const lessons = this.academyEffects(state, 'agent_discount').reduce((acc, e) => acc * (1 - e.reduction), 1);
+    return 1 - (1 - this.getReputationAgentDiscount(state)) * lessons;
   }
 
   canBuyAgent(state: GameState, agentId: string): boolean {
@@ -278,9 +292,9 @@ export class GameEngine {
   // ─── OFFLINE ───────────────────────────────────────────────
 
   applyOfflineEarnings(state: GameState, seconds: number): { state: GameState; earned: number } {
-    const capped = Math.min(seconds, MAX_OFFLINE_HOURS * 3600);
+    const capped = Math.min(seconds, this.getMaxOfflineHours(state) * 3600);
     const rate = this.getTotalRate(state);
-    const offlineRate = this.getReputationOfflineRate(state);
+    const offlineRate = this.getOfflineRate(state);
     const earned = Math.min(rate * capped * offlineRate, MAX_AMOUNT);
     if (!(earned > 0)) return { state, earned: 0 };
     return { state: this.earn(state, earned), earned };
@@ -307,10 +321,12 @@ export class GameEngine {
     return Math.min(state.totalEarned / this.getPrestigeThreshold(state), 1);
   }
 
-  /** RP gagnés en vendant maintenant (au minimum ceux du seuil, tant qu'il n'est pas atteint). */
+  /** RP gagnés en vendant maintenant (au minimum ceux du seuil), × 1,25 avec la leçon « Petit ou grand modèle ? ». */
   getPrestigeRP(state: GameState): number {
     const threshold = this.getPrestigeThreshold(state);
-    return getPrestigeRP(Math.max(state.totalEarned, threshold), threshold, state.prestigeCount);
+    const base = getPrestigeRP(Math.max(state.totalEarned, threshold), threshold, state.prestigeCount);
+    const mult = this.academyEffects(state, 'rp_multiplier').reduce((acc, e) => acc * e.multiplier, 1);
+    return Math.floor(base * mult);
   }
 
   /** Objectif de la partie suivante, calculé comme après la vente (clé de transition posée). */
@@ -432,6 +448,128 @@ export class GameEngine {
 
   getReputationEchoCooldownMult(state: GameState): number {
     return this.hasRepPerk(state, 'rep-echo-boost') ? 0.5 : 1;
+  }
+
+  // ─── ACADEMY (arbre de recherche) ──────────────────────────
+
+  /** Bonus des leçons acquises, filtrés par type. */
+  private academyEffects<T extends AcademyEffect['type']>(state: GameState, type: T): Extract<AcademyEffect, { type: T }>[] {
+    const out: Extract<AcademyEffect, { type: T }>[] = [];
+    for (const l of ACADEMY_LESSONS) {
+      if (l.effect.type === type && state.reputationPurchased?.[l.id]) out.push(l.effect as Extract<AcademyEffect, { type: T }>);
+    }
+    return out;
+  }
+
+  isLessonLearned(state: GameState, lessonId: string): boolean {
+    return !!state.reputationPurchased?.[lessonId];
+  }
+
+  getLearnedLessonCount(state: GameState): number {
+    return ACADEMY_LESSONS.filter(l => this.isLessonLearned(state, l.id)).length;
+  }
+
+  /** Les leçons prérequises sont-elles toutes acquises ? */
+  areLessonPrereqsMet(state: GameState, lesson: AcademyLesson): boolean {
+    return lesson.requires.every(id => this.isLessonLearned(state, id));
+  }
+
+  isLessonConditionMet(state: GameState, c: LessonCondition): boolean {
+    switch (c.type) {
+      case 'agents':   return (state.agents[c.agentId]?.count ?? 0) >= c.count;
+      case 'clients':  return this.getUnlockedClientCount(state) >= c.count;
+      case 'prestige': return state.prestigeCount >= c.count;
+    }
+  }
+
+  /** La leçon peut-elle être étudiée (prérequis acquis, conditions de jeu remplies, pas encore acquise) ? */
+  canStudyLesson(state: GameState, lessonId: string): boolean {
+    const lesson = ACADEMY_LESSONS.find(l => l.id === lessonId);
+    if (!lesson || this.isLessonLearned(state, lessonId)) return false;
+    return this.areLessonPrereqsMet(state, lesson) && lesson.conditions.every(c => this.isLessonConditionMet(state, c));
+  }
+
+  canLearnLesson(state: GameState, lessonId: string): boolean {
+    const lesson = ACADEMY_LESSONS.find(l => l.id === lessonId);
+    return !!lesson && this.canStudyLesson(state, lessonId) && state.currency >= lesson.cost;
+  }
+
+  /** Bonne réponse : la leçon est payée en euros de la partie et acquise pour toujours. */
+  learnLesson(state: GameState, lessonId: string): GameState {
+    if (!this.canLearnLesson(state, lessonId)) return state;
+    const lesson = ACADEMY_LESSONS.find(l => l.id === lessonId)!;
+    return {
+      ...state,
+      currency: state.currency - lesson.cost,
+      reputationPurchased: { ...state.reputationPurchased, [lessonId]: true },
+    };
+  }
+
+  /**
+   * Report gratuit des réussites de l'ancienne Academy (clé `bot-empire-academy`).
+   * Idempotent : ne renvoie que les leçons nouvellement reportées.
+   */
+  migrateLegacyAcademy(state: GameState, completedIds: readonly string[]): { state: GameState; migrated: string[] } {
+    const migrated = completedIds
+      .map(id => LEGACY_ACADEMY_MAP[id])
+      .filter((id): id is string => !!id && !this.isLessonLearned(state, id));
+    if (!migrated.length) return { state, migrated };
+    const reputationPurchased = { ...state.reputationPurchased };
+    for (const id of migrated) reputationPurchased[id] = true;
+    return { state: { ...state, reputationPurchased }, migrated };
+  }
+
+  /** Revenu hors ligne : 50 % (75 % avec la réputation), + 10 points avec la leçon « backoff ». */
+  getOfflineRate(state: GameState): number {
+    return this.getReputationOfflineRate(state)
+      + this.academyEffects(state, 'offline_rate').reduce((acc, e) => acc + e.points, 0);
+  }
+
+  /** Plafond du hors ligne : 8 h, 12 h avec la leçon « condition d'arrêt ». */
+  getMaxOfflineHours(state: GameState): number {
+    return this.academyEffects(state, 'offline_cap').reduce((acc, e) => Math.max(acc, e.hours), MAX_OFFLINE_HOURS);
+  }
+
+  /** Durée de rejeu de l'Écho (s). */
+  getEchoReplaySeconds(state: GameState): number {
+    return this.academyEffects(state, 'echo_replay').reduce((acc, e) => Math.max(acc, e.seconds), ECHO_REPLAY_SECONDS);
+  }
+
+  /** Durée de travail des contrats (multiplicateur). */
+  getContractWorkTimeMult(state: GameState): number {
+    return this.academyEffects(state, 'contract_speed').reduce((acc, e) => acc * e.factor, 1);
+  }
+
+  /** Récompense des contrats : réputation (×1,25) et Academy (×1,25), cumulées. */
+  getContractRewardMult(state: GameState): number {
+    return this.getReputationContractBonus(state)
+      * this.academyEffects(state, 'contract_reward').reduce((acc, e) => acc * e.multiplier, 1);
+  }
+
+  /** Emplacements de contrat en plus des 3 de base (réputation, Academy). */
+  getExtraContractSlots(state: GameState): number {
+    return (this.getReputationExtraSlot(state) ? 1 : 0) + this.academyEffects(state, 'contract_slot').length;
+  }
+
+  /** Multiplicateur d'un événement de marché après la leçon « injection » : la perte est divisée par 2. */
+  getEffectiveMarketMult(state: GameState, mult: number): number {
+    if (mult >= 1 || !this.academyEffects(state, 'market_soften').length) return mult;
+    return 1 - (1 - mult) / 2;
+  }
+
+  /** Intervalle entre deux lettres ambre (multiplicateur, 0,8 avec la leçon « streaming »). */
+  getLeadIntervalMult(state: GameState): number {
+    return this.academyEffects(state, 'lead_frequency').reduce((acc, e) => acc * e.factor, 1);
+  }
+
+  /** Affichage « rentabilisé en X » (leçon « le prix d'un token »). */
+  hasPaybackDisplay(state: GameState): boolean {
+    return this.academyEffects(state, 'payback').length > 0;
+  }
+
+  /** Niveau de Délégation (0, I ou II) donné par l'arbre. */
+  getDelegationLevel(state: GameState): 0 | 1 | 2 {
+    return this.academyEffects(state, 'delegation').reduce<0 | 1 | 2>((acc, e) => (e.level > acc ? e.level : acc), 0);
   }
 
   // ─── STATS ─────────────────────────────────────────────────

@@ -1,6 +1,7 @@
 import { GameState } from '../core/GameState.ts';
 import { AGENTS, getTeamTier, getTeamTierMultiplier } from '../config/agents.ts';
 import { CLIENTS } from '../config/clients.ts';
+import { ACADEMY_IDS, getAcademyGrade } from '../config/academy.ts';
 import { t } from '../i18n/i18n.ts';
 import type { UiKey } from '../i18n/ui.ts';
 import { formatMultiplier } from '../utils/format.ts';
@@ -143,6 +144,9 @@ const BANNER_MS      = 2800;
 const INK_IN         = 1.3;           // s : la dalle se vide en encre (prestige)
 const INK_OUT        = 1.7;           // s : puis renaît
 const REBIRTH_EXTENT = 0.6;
+const NOTEBOOK_ROWS  = 4;             // cahier de l'Academy : 4 lignes de 3 traits par page, 2 pages
+const NOTEBOOK_COLS  = 3;
+const GRADE_MIN_S    = 22;            // px par unité : en dessous, le grade n'est plus lisible sur le dossier
 
 // ─── TYPES ────────────────────────────────────────────────────
 
@@ -249,6 +253,8 @@ export class Bureau {
   private founderMult = 1;
   private prestigeCount = 0;
   private totalAgents = 0;
+  private lessons = 0;                   // leçons de l'Academy acquises (un trait d'encre chacune)
+  private gradeLabel = '';
   private hovered: string | null = null;
   private touchTimer: ReturnType<typeof setTimeout> | null = null;
   private dpr = 1;
@@ -394,6 +400,11 @@ export class Bureau {
       }
     }
     this.synced = true;
+    const lessons = ACADEMY_IDS.filter(id => state.reputationPurchased?.[id]).length;
+    if (lessons !== this.lessons) {
+      this.lessons = lessons;
+      this.gradeLabel = t(getAcademyGrade(lessons).key);
+    }
     this.prestigeCount = state.prestigeCount;
     this.founderMult = 1 + state.prestigeCount * 0.15;
 
@@ -1068,6 +1079,8 @@ export class Bureau {
       rgba(this.C.ambre, hovered ? 1 : 0.7));
     const S = this.S;
 
+    this.drawNotebook();
+
     // Fauteuil vide, vu de trois quarts : assise, dossier, deux pieds
     const z0 = FOUNDER_HEIGHT;
     const P = (x: number, y: number, z: number) => this.iso(x, y, z0 + z);
@@ -1087,9 +1100,23 @@ export class Bureau {
     this.poly([P(-s, -s, 13), P(s, -s, 13), P(s, -s, 46), P(-s, -s, 46)]);
     ctx.fill(); ctx.stroke();
 
+    // Grade de l'Academy, écrit à la main en bas du dossier
+    if (this.lessons > 0 && S >= GRADE_MIN_S) {
+      const [gx, gy] = P(0, -s, 20);
+      ctx.save();
+      ctx.translate(gx, gy);
+      ctx.rotate(-0.12);
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.font = `600 ${Math.max(8, S * 0.13)}px ${this.display}`;
+      ctx.fillStyle = rgba(this.C.encre, 0.72);
+      ctx.fillText(this.gradeLabel, 0, 0);
+      ctx.restore();
+    }
+
     // Multiplicateur écrit à la main sur le dossier
     if (this.prestigeCount > 0) {
-      const [mx, my] = P(0, -s, 31);
+      const [mx, my] = P(0, -s, this.lessons > 0 ? 35 : 31);
       ctx.save();
       ctx.translate(mx, my);
       ctx.rotate(-0.12);
@@ -1101,6 +1128,46 @@ export class Bureau {
       ctx.restore();
     }
     void cx; void cy;
+  }
+
+  /**
+   * Cahier ouvert posé sur le socle du fondateur, devant le fauteuil : chaque leçon acquise
+   * y ajoute un trait d'encre (12 par page, 2 pages ; le dernier en ambre).
+   */
+  private drawNotebook(): void {
+    if (this.lessons <= 0 || this.S < SMALL_S) return;
+    const ctx = this.ctx;
+    const P = (x: number, y: number) => this.iso(x, y, FOUNDER_HEIGHT);
+    const gx0 = 0.44, gx1 = 0.74;
+    const pages: Array<[number, number]> = [[-0.36, -0.03], [0.03, 0.36]];
+    ctx.save();
+    ctx.lineWidth = 1;
+    ctx.fillStyle = rgba(this.C.socle, 1);
+    ctx.strokeStyle = rgba(this.C.encre, 0.25);
+    for (const [y0, y1] of pages) {
+      this.poly([P(gx0, y0), P(gx1, y0), P(gx1, y1), P(gx0, y1)]);
+      ctx.fill();
+      ctx.stroke();
+    }
+    const perPage = NOTEBOOK_ROWS * NOTEBOOK_COLS;
+    const shown = Math.min(this.lessons, perPage * pages.length);
+    ctx.lineWidth = Math.max(1, this.S * 0.025);
+    ctx.lineCap = 'round';
+    for (let i = 0; i < shown; i++) {
+      const [y0, y1] = pages[Math.floor(i / perPage)]!;
+      const k = i % perPage;
+      const row = Math.floor(k / NOTEBOOK_COLS);
+      const col = k % NOTEBOOK_COLS;
+      const gx = gx0 + 0.05 + row * ((gx1 - gx0 - 0.1) / (NOTEBOOK_ROWS - 1));
+      const w = (y1 - y0 - 0.06) / NOTEBOOK_COLS;
+      const ya = y0 + 0.03 + col * w + 0.012;
+      ctx.strokeStyle = i === shown - 1 ? rgba(this.C.ambre, 1) : rgba(this.C.encre, 0.62);
+      ctx.beginPath();
+      ctx.moveTo(...P(gx, ya));
+      ctx.lineTo(...P(gx, ya + w - 0.03));
+      ctx.stroke();
+    }
+    ctx.restore();
   }
 
   private drawCloud(post: Post): void {

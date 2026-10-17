@@ -9,7 +9,7 @@ import { SaveSystem } from './core/SaveSystem.ts';
 import { type GameState } from './core/GameState.ts';
 import { Renderer, type BuyMode } from './ui/Renderer.ts';
 import { Bureau } from './ui/Bureau.ts';
-import { formatCurrency, formatDuration, setText } from './utils/format.ts';
+import { formatCurrency, formatCurrencyCompact, formatDuration, setText } from './utils/format.ts';
 import { playClick, playPurchase, playClientUnlock, playMilestone, playPrestige, isSoundOn, setSoundOn } from './utils/audio.ts';
 import { EchoSystem } from './systems/EchoSystem.ts';
 import { IncidentSystem, type IncidentQuestion } from './systems/IncidentSystem.ts';
@@ -22,9 +22,13 @@ import { FIREBASE_CONFIG, CLOUD_SAVE_ENABLED } from './config/firebase.ts';
 import { ContractSystem, type ActiveContract } from './systems/ContractSystem.ts';
 import { MarketSystem } from './systems/MarketSystem.ts';
 import { AcademySystem } from './systems/AcademySystem.ts';
-import { CHAPTERS, CHALLENGES, getChallengesByChapter, type AcademyChallenge } from './config/academy.ts';
+import {
+  ACADEMY_LESSONS, ACADEMY_BRANCHES, XP_PER_LESSON, getAcademyGrade,
+  type AcademyLesson, type AcademyEffect, type LessonCondition,
+} from './config/academy.ts';
+import type { UiKey } from './i18n/ui.ts';
 import { REPUTATION_PERKS, NOTORIETE_IDS, NOTORIETE_INCOME_PER_LEVEL } from './config/reputationPerks.ts';
-import { spawnFloatingNumber, spawnInkLetters, flashScreen, typeText } from './utils/gamefeel.ts';
+import { spawnInkLetters, flashScreen } from './utils/gamefeel.ts';
 import { formatRate, formatMultiplier } from './utils/format.ts';
 import { AGENTS, TEAM_TIERS, getTeamTier, getTeamTierMultiplier } from './config/agents.ts';
 import { LANG, setLang, t, translateStaticDom } from './i18n/i18n.ts';
@@ -36,12 +40,6 @@ import { icon, hydrateIcons, PERK_ICONS } from './ui/icons.ts';
 applyContentLanguage();
 translateStaticDom();
 hydrateIcons();
-
-// L'Academy note les prompts avec des expressions régulières en français : masquée en anglais
-if (LANG === 'en') {
-  document.querySelector('.tab[data-tab="academy"]')?.classList.add('hidden');
-  document.getElementById('tab-academy')?.classList.add('hidden');
-}
 
 // ─── INIT ────────────────────────────────────────────────────
 
@@ -67,8 +65,9 @@ const marketBannerDesc = document.getElementById('market-banner-desc')!;
 const marketBannerEff  = document.getElementById('market-banner-effect')!;
 const marketBannerTime = document.getElementById('market-banner-timer')!;
 
-function marketEffectLabel(type: 'income' | 'click', mult: number): string {
-  if (type === 'click') return t('market.click', { mult });
+function marketEffectLabel(type: 'income' | 'click', raw: number): string {
+  if (type === 'click') return t('market.click', { mult: raw });
+  const mult = engine.getEffectiveMarketMult(state, raw); // leçon « injection » : perte divisée par 2
   return mult >= 1
     ? t('market.incomeUp',   { n: Math.round((mult - 1) * 100) })
     : t('market.incomeDown', { n: Math.round((1 - mult) * 100) });
@@ -101,7 +100,9 @@ const tabCountReputation = document.getElementById('tab-count-reputation')!;
 // Academy — onglet
 const tabAcademy      = document.getElementById('tab-academy')!;
 const tabCountAcademy = document.getElementById('tab-count-academy')!;
-let academyActiveChallengeId: string | null = null;
+let academyOpenId: string | null = null;      // fiche de leçon ouverte (null : le cahier)
+let academyWrongId: string | null = null;     // dernière leçon ratée (message sous la question)
+const academyOpenBranches = new Set<string>(); // branches dépliées par le joueur
 
 // Incident elements
 const incidentUrgency    = document.getElementById('incident-urgency')!;
@@ -130,6 +131,7 @@ const elCurrency    = document.getElementById('hd-currency')!;
 const CLICK_LETTERS_MIN = 3; // 3 à 5 lettres s'envolent à chaque clic
 
 let state = saveSystem.load();
+migrateLegacyAcademy();
 
 // Autosave
 saveSystem.startAutosave(() => state);
@@ -216,7 +218,7 @@ bureau.onStageChange = () => {
 // Ordre : offline → URL import (jamais en simultané). Les bulles d'aide ne bloquent rien.
 
 // 1. Offline earnings
-const offlineSeconds = saveSystem.getOfflineSeconds(state);
+const offlineSeconds = saveSystem.getOfflineSeconds(state, engine.getMaxOfflineHours(state));
 if (offlineSeconds > 10) {
   const { state: newState, earned } = engine.applyOfflineEarnings(state, offlineSeconds);
   state = newState;
@@ -286,6 +288,7 @@ if (CLOUD_SAVE_ENABLED && storageOk) {
     const cloudState = await cloud.getIfNewer(state);
     if (cloudState) {
       state = cloudState;
+      migrateLegacyAcademy();
       saveSystem.save(state);
       renderer.markDirty();
       bureau.update(0, state);
@@ -343,7 +346,7 @@ function gameLoop(timestamp: number): void {
       triggerGhostClick();
     }
 
-    const incomeMult = market.getIncomeMultiplier();
+    const incomeMult = engine.getEffectiveMarketMult(state, market.getIncomeMultiplier());
     const { state: nextState, result } = engine.tick(state, dt, incomeMult);
     state = nextState;
     accumulator -= TICK_MS;
@@ -393,6 +396,7 @@ function gameLoop(timestamp: number): void {
   renderer.update(state);
   updateEchoUI();
   updateContractProgressBars();
+  updateAcademyLive();
   hints.reposition();
   requestAnimationFrame(gameLoop);
 }
@@ -420,7 +424,7 @@ btnClick.addEventListener('click', (e) => {
 btnEcho.addEventListener('click', () => {
   if (!echo.canActivate()) return;
   echo.activate();
-  notify(t('echo.activated'), 'orange');
+  notify(t('echo.activated', { n: engine.getEchoReplaySeconds(state) }), 'orange');
 });
 
 // Délégation — sélecteur ×1 / ×10 / max puis achat d'agents
@@ -503,7 +507,7 @@ document.querySelectorAll('.tab').forEach(tab => {
       renderReputation();
     }
     if (target === 'academy') {
-      academyActiveChallengeId = null;
+      academyOpenId = null;
       renderAcademy();
     }
   });
@@ -564,6 +568,8 @@ document.getElementById('btn-offline-close')!.addEventListener('click', () => {
 document.getElementById('btn-import-url-confirm')!.addEventListener('click', () => {
   if (!urlState) return;
   state = urlState;
+  migrateLegacyAcademy();
+  applyReputationEffects();
   saveSystem.save(state);
   renderer.markDirty();
   closeModal('import-url-overlay');
@@ -618,6 +624,8 @@ document.getElementById('btn-import')!.addEventListener('change', (e) => {
     const imported = saveSystem.importFromText(raw);
     if (imported) {
       state = imported;
+      migrateLegacyAcademy();
+      applyReputationEffects();
       saveSystem.save(state);
       renderer.markDirty();
       notify(t('save.imported'), 'green');
@@ -670,7 +678,7 @@ function updateEchoUI(): void {
   if (es.isActive) {
     setText(echoSub, t('echo.active', { n: es.replayRemaining }));
     echoBarWrap.style.display = '';
-    echoBarFill.style.width   = `${(es.replayRemaining / 60) * 100}%`;
+    echoBarFill.style.width   = `${(es.replayRemaining / es.replayDuration) * 100}%`;
     setText(echoTimerLbl, `${es.replayRemaining}s`);
   } else if (es.isOnCooldown) {
     const m = Math.floor(es.cooldownRemaining / 60);
@@ -994,9 +1002,11 @@ function renderContractSlot(slot: ActiveContract | null, i: number): string {
 function applyReputationEffects(): void {
   // Synchronise les systèmes avec l'état de réputation actuel
   echo.setCooldownMultiplier(engine.getReputationEchoCooldownMult(state));
+  echo.setReplayDuration(engine.getEchoReplaySeconds(state));
   contractSys.setReputation(
-    engine.getReputationExtraSlot(state),
-    engine.getReputationContractBonus(state),
+    engine.getExtraContractSlots(state),
+    engine.getContractRewardMult(state),
+    engine.getContractWorkTimeMult(state),
   );
   tabCountReputation.textContent = String(state.reputationPoints ?? 0);
 }
@@ -1135,281 +1145,230 @@ function updateMarketBannerTimer(): void {
 }
 
 // ─── IA ACADEMY ──────────────────────────────────────────────
+// Un arbre de 24 leçons : lire, répondre à une question à 3 choix, payer en euros, gagner un bonus
+// permanent. Les leçons acquises sont des clés acad-* de reputationPurchased (voir GameEngine).
+
+type LessonStatus = 'learned' | 'open' | 'pending' | 'locked';
+
+function lessonStatus(l: AcademyLesson): LessonStatus {
+  if (engine.isLessonLearned(state, l.id)) return 'learned';
+  if (!engine.areLessonPrereqsMet(state, l)) return 'locked';
+  return engine.canStudyLesson(state, l.id) ? 'open' : 'pending';
+}
+
+function conditionLabel(c: LessonCondition): string {
+  switch (c.type) {
+    case 'agents':   return t('acad.cond.agents', { n: c.count, agent: AGENTS.find(a => a.id === c.agentId)?.name ?? c.agentId });
+    case 'clients':  return t('acad.cond.clients', { n: c.count });
+    case 'prestige': return c.count <= 1 ? t('acad.cond.prestige1') : t('acad.cond.prestigeN', { n: c.count });
+  }
+}
+
+/** Libellé du bonus permanent d'une leçon. */
+function lessonEffectLabel(e: AcademyEffect): string {
+  const pct = (x: number) => Math.round(x * 100);
+  switch (e.type) {
+    case 'none':              return t('acad.eff.none');
+    case 'click_multiplier':  return t('acad.eff.click', { mult: formatMultiplier(e.multiplier) });
+    case 'echo_replay':       return t('acad.eff.echo', { n: e.seconds });
+    case 'click_share':       return t('acad.eff.share', { pct: pct(e.share) });
+    case 'contract_speed':    return t('acad.eff.contractSpeed', { pct: pct(1 - e.factor) });
+    case 'agent_multiplier':  return t('acad.eff.agent', { agent: AGENTS.find(a => a.id === e.agentId)?.name ?? e.agentId, mult: formatMultiplier(e.multiplier) });
+    case 'offline_rate':      return t('acad.eff.offlineRate', { pct: pct(e.points) });
+    case 'offline_cap':       return t('acad.eff.offlineCap', { n: e.hours });
+    case 'delegation':        return t(e.level === 1 ? 'acad.eff.delegation1' : 'acad.eff.delegation2');
+    case 'client_multiplier': return t('acad.eff.client', { mult: formatMultiplier(e.multiplier) });
+    case 'agent_discount':    return t('acad.eff.discount', { pct: pct(e.reduction) });
+    case 'contract_reward':   return t('acad.eff.contractReward', { mult: formatMultiplier(e.multiplier) });
+    case 'market_soften':     return t('acad.eff.market');
+    case 'contract_slot':     return t('acad.eff.slot');
+    case 'payback':           return t('acad.eff.payback');
+    case 'lead_frequency':    return t('acad.eff.lead', { pct: Math.round((1 / e.factor - 1) * 100) });
+    case 'rp_multiplier':     return t('acad.eff.rp', { mult: formatMultiplier(e.multiplier) });
+    case 'global_multiplier': return t('acad.eff.global', { mult: formatMultiplier(e.multiplier) });
+  }
+}
+
+/** Report gratuit des réussites de l'ancienne Academy (une seule annonce). */
+function migrateLegacyAcademy(): void {
+  const { state: next, migrated } = engine.migrateLegacyAcademy(state, academy.getLegacyCompleted());
+  if (!migrated.length) return;
+  state = next;
+  saveSystem.save(state);
+  if (academy.wasMigrationAnnounced()) return;
+  academy.markMigrationAnnounced();
+  setTimeout(() => notifyMilestone(t('acad.migrated', { n: migrated.length })), NEW_MARKETS_DELAY_MS);
+}
 
 function updateAcademyBadge(): void {
-  const total     = CHALLENGES.length;
-  const completed = academy.getTotalCompleted();
-  tabCountAcademy.textContent = `${completed}/${total}`;
+  setText(tabCountAcademy, `${engine.getLearnedLessonCount(state)}/${ACADEMY_LESSONS.length}`);
+  tabCountAcademy.classList.toggle('has-new', ACADEMY_LESSONS.some(l => engine.canLearnLesson(state, l.id)));
+}
+
+/** Clé de l'état du cahier : quand elle change (condition remplie, leçon acquise), on le redessine. */
+function academyKey(): string {
+  return ACADEMY_LESSONS.map(l => lessonStatus(l)[0]).join('');
+}
+let academyRenderedKey = '';
+
+function lessonPage(l: AcademyLesson): string {
+  const status = lessonStatus(l);
+  if (status === 'locked') {
+    return `<li><div class="acad-page locked" aria-label="${t('acad.locked')}">
+      <span class="acad-page-title">${icon('lock')}???</span>
+      <span class="acad-page-meta">${t('acad.locked')}</span></div></li>`;
+  }
+  if (status === 'pending') {
+    const missing = l.conditions.filter(c => !engine.isLessonConditionMet(state, c)).map(conditionLabel).join(' · ');
+    return `<li><div class="acad-page pending">
+      <span class="acad-page-title">???</span>
+      <span class="acad-page-meta">${missing} · ${formatCurrencyCompact(l.cost)}</span></div></li>`;
+  }
+  const learned = status === 'learned';
+  return `<li><button type="button" class="acad-page ${status}" data-lesson="${l.id}">
+      <span class="acad-page-title">${l.title}</span>
+      <span class="acad-page-bonus">${lessonEffectLabel(l.effect)}</span>
+      ${learned
+        ? `<span class="acad-stamp">${t('acad.learned')}</span>`
+        : `<span class="acad-page-cost">${formatCurrencyCompact(l.cost)}</span>`}
+    </button></li>`;
 }
 
 function renderAcademy(): void {
   updateAcademyBadge();
+  academyRenderedKey = academyKey();
+  const open = academyOpenId ? ACADEMY_LESSONS.find(l => l.id === academyOpenId) : undefined;
+  if (open) { renderLessonSheet(open); return; }
 
-  // Vue défi actif
-  if (academyActiveChallengeId) {
-    const challenge = CHALLENGES.find(c => c.id === academyActiveChallengeId);
-    if (challenge) { renderChallengeView(challenge); return; }
-  }
-
-  const totalXP   = academy.getState().totalXP;
-  const maxXP     = CHALLENGES.reduce((s, c) => s + c.xpReward, 0);
-  const xpPct     = maxXP > 0 ? Math.round((totalXP / maxXP) * 100) : 0;
-
-  let html = `
-    <div class="academy-intro">
-      <div class="academy-intro-title">${icon('cap')}IA ACADEMY</div>
-      <div class="academy-intro-sub">Deviens expert IA sans quitter le jeu</div>
-    </div>
-    <div class="academy-xp-bar-wrap">
-      <span class="academy-xp-label">Progression</span>
-      <div class="academy-xp-track">
-        <div class="academy-xp-fill" style="width:${xpPct}%"></div>
-      </div>
-      <span class="academy-xp-value">${totalXP} XP</span>
-    </div>
-  `;
-
-  for (const chapter of CHAPTERS) {
-    const challenges  = getChallengesByChapter(chapter.id);
-    const done        = challenges.filter(c => academy.isCompleted(c.id)).length;
-    const isOpen      = done > 0 || chapter.id === 'ch1';
-
-    html += `
-      <div class="chapter-card${isOpen ? ' open' : ''}" data-chapter="${chapter.id}">
-        <div class="chapter-header">
-          <div class="chapter-icon">${icon('book')}</div>
-          <div class="chapter-meta">
-            <div class="chapter-title">Chapitre ${chapter.number} — ${chapter.title}</div>
-            <div class="chapter-subtitle">${chapter.subtitle}</div>
-          </div>
-          <span class="chapter-progress">${done}/${challenges.length}</span>
+  const n = engine.getLearnedLessonCount(state);
+  const pct = Math.round((n / ACADEMY_LESSONS.length) * 100);
+  const root = ACADEMY_LESSONS.filter(l => l.branch === 'root');
+  const branches = ACADEMY_BRANCHES.map(b => {
+    const lessons = ACADEMY_LESSONS.filter(l => l.branch === b);
+    const done = lessons.filter(l => engine.isLessonLearned(state, l.id)).length;
+    const unfolded = academyOpenBranches.has(b) || lessons.some(l => lessonStatus(l) === 'open');
+    return `
+      <details class="acad-branch" data-branch="${b}"${unfolded ? ' open' : ''}>
+        <summary class="acad-branch-head">
+          <span class="acad-branch-name">${t(`acad.branch.${b}` as UiKey)}</span>
+          <span class="acad-branch-count">${done}/${lessons.length}</span>
           <span class="chapter-chevron">${icon('chevron')}</span>
-        </div>
-        <div class="chapter-challenges">
-          ${challenges.map(c => renderChallengeItem(c)).join('')}
-        </div>
-      </div>
-    `;
-  }
-
-  tabAcademy.innerHTML = html;
-
-  // Toggle chapitres
-  tabAcademy.querySelectorAll('.chapter-header').forEach(header => {
-    header.addEventListener('click', () => {
-      const card = header.closest('.chapter-card')!;
-      card.classList.toggle('open');
-    });
-  });
-
-  // Clic sur un défi
-  tabAcademy.querySelectorAll('.challenge-item:not(.locked)').forEach(item => {
-    item.addEventListener('click', () => {
-      const id = (item as HTMLElement).dataset['challenge']!;
-      academyActiveChallengeId = id;
-      renderAcademy();
-    });
-  });
-}
-
-function renderChallengeItem(challenge: AcademyChallenge): string {
-  const done      = academy.isCompleted(challenge.id);
-  const unlocked  = academy.isUnlocked(challenge);
-  const classes   = ['challenge-item', done ? 'completed' : '', !unlocked ? 'locked' : ''].filter(Boolean).join(' ');
-  const statusIcon = icon(done ? 'check' : !unlocked ? 'lock' : 'play');
-
-  return `
-    <div class="${classes}" data-challenge="${challenge.id}">
-      <div class="challenge-status">${statusIcon}</div>
-      <div class="challenge-info">
-        <div class="challenge-name">${challenge.title}</div>
-        <div class="challenge-sub">${challenge.subtitle}</div>
-      </div>
-      <span class="challenge-reward">${done ? '✓' : `+${formatCurrency(challenge.euroReward)}`}</span>
-    </div>
-  `;
-}
-
-function renderChallengeView(challenge: AcademyChallenge): void {
-  const alreadyDone = academy.isCompleted(challenge.id);
+        </summary>
+        <ol class="acad-pages">${lessons.map(lessonPage).join('')}</ol>
+      </details>`;
+  }).join('');
 
   tabAcademy.innerHTML = `
-    <div class="gpturbo-view">
-      <button class="gpturbo-back" id="academy-back" type="button">${icon('back')}Retour à l'Academy</button>
-
-      <div class="gpturbo-context">
-        <div class="gpturbo-context-title">${icon('document')}Ta mission</div>
-        <div class="gpturbo-context-body">${challenge.context}</div>
-        <div class="gpturbo-tips">
-          ${challenge.tips.map(t => `<span class="gpturbo-tip">${t}</span>`).join('')}
-        </div>
-      </div>
-
-      <div class="gpturbo-chat" id="gpturbo-chat">
-        <div class="gpturbo-chat-header">
-          <div class="gpturbo-avatar">${icon('bolt')}</div>
-          <div>
-            <div class="gpturbo-name">GPTurbo</div>
-            <div class="gpturbo-status">En ligne</div>
-          </div>
-        </div>
-        <div class="gpturbo-messages" id="gpturbo-messages">
-          <div class="gpturbo-msg-system">GPTurbo est prêt. Tape ta demande ci-dessous.</div>
-        </div>
-        <div class="gpturbo-input-zone">
-          <textarea
-            class="gpturbo-input"
-            id="gpturbo-input"
-            placeholder="Écris ta demande à GPTurbo..."
-            rows="3"
-            ${alreadyDone ? 'disabled' : ''}
-          ></textarea>
-          <button class="btn-gpturbo-send" id="gpturbo-send" ${alreadyDone ? 'disabled' : ''}>
-            Envoyer ${icon('send')}
-          </button>
-        </div>
-      </div>
-
-      <div id="gpturbo-score-zone"></div>
+    <div class="academy-intro">
+      <div class="academy-intro-title">${icon('cap')}${t('acad.title')}</div>
+      <div class="academy-intro-sub">${t('acad.sub')}</div>
     </div>
+    <div class="academy-xp-bar-wrap">
+      <span class="academy-xp-label">${t('acad.grade', { grade: t(getAcademyGrade(n).key) })}</span>
+      <div class="academy-xp-track" role="progressbar" aria-valuemin="0" aria-valuemax="${ACADEMY_LESSONS.length}" aria-valuenow="${n}">
+        <div class="academy-xp-fill" style="width:${pct}%"></div>
+      </div>
+      <span class="academy-xp-value">${t('acad.progress', { n, total: ACADEMY_LESSONS.length, xp: n * XP_PER_LESSON })}</span>
+    </div>
+    <ol class="acad-pages acad-root">${root.map(lessonPage).join('')}</ol>
+    <div class="acad-branches">${branches}</div>
   `;
 
+  tabAcademy.querySelectorAll<HTMLDetailsElement>('.acad-branch').forEach(d => {
+    d.addEventListener('toggle', () => {
+      const b = d.dataset['branch']!;
+      if (d.open) academyOpenBranches.add(b); else academyOpenBranches.delete(b);
+    });
+  });
+  tabAcademy.querySelectorAll<HTMLElement>('[data-lesson]').forEach(el => {
+    el.addEventListener('click', () => {
+      academyOpenId = el.dataset['lesson']!;
+      renderAcademy();
+      tabAcademy.closest('.tab-panels')?.scrollTo({ top: 0 });
+    });
+  });
+}
+
+function renderLessonSheet(l: AcademyLesson): void {
+  const learned = engine.isLessonLearned(state, l.id);
+  const order = academy.getAnswerOrder(l.id);
+  const wrong = academyWrongId === l.id;
+  tabAcademy.innerHTML = `
+    <div class="acad-sheet">
+      <button class="gpturbo-back" id="academy-back" type="button">${icon('back')}${t('acad.back')}</button>
+      <article class="acad-sheet-page${learned ? ' learned' : ''}" aria-labelledby="acad-sheet-title">
+        <div class="acad-sheet-kicker">${t(`acad.branch.${l.branch}` as UiKey)}</div>
+        <h3 class="acad-sheet-title" id="acad-sheet-title">${l.title}</h3>
+        <p class="acad-sheet-lesson">${l.lesson}</p>
+        <p class="acad-sheet-real"><strong>${t('acad.realLife')}</strong> ${l.realLife}</p>
+        <div class="acad-sheet-bonus"><span class="label">${t('acad.bonus')}</span>${lessonEffectLabel(l.effect)}</div>
+        ${learned ? `<span class="acad-stamp acad-stamp-big">${t('acad.learned')}</span>` : `
+        <div class="acad-quiz">
+          <p class="acad-question" id="acad-question">${l.question}</p>
+          <div class="acad-answers" role="group" aria-labelledby="acad-question">
+            ${order.map((orig, i) => `<button type="button" class="acad-answer" data-answer="${i}"><span>${l.answers[orig]}</span></button>`).join('')}
+          </div>
+          <p class="acad-feedback${wrong ? '' : ' hidden'}" role="status">${wrong ? t('acad.wrong') : ''}</p>
+          <div class="acad-quiz-foot">
+            <span class="acad-cost">${t('acad.cost', { amount: formatCurrencyCompact(l.cost) })}</span>
+            <span class="acad-status" id="acad-status" aria-live="polite"></span>
+          </div>
+          <p class="acad-rule">${t('acad.rule')}</p>
+        </div>`}
+      </article>
+    </div>
+  `;
   document.getElementById('academy-back')!.addEventListener('click', () => {
-    academyActiveChallengeId = null;
+    academyOpenId = null;
+    academyWrongId = null;
     renderAcademy();
   });
+  tabAcademy.querySelectorAll<HTMLButtonElement>('[data-answer]').forEach(btn => {
+    btn.addEventListener('click', () => answerLesson(l, Number(btn.dataset['answer'])));
+  });
+  updateAcademyLive();
+}
 
-  if (alreadyDone) {
-    const scoreZone = document.getElementById('gpturbo-score-zone')!;
-    scoreZone.innerHTML = `<div class="gpturbo-score"><div class="score-title">${icon('check')}Défi complété !</div><p class="score-lesson">${challenge.lesson}</p></div>`;
+function answerLesson(l: AcademyLesson, displayIdx: number): void {
+  if (academy.getRetrySeconds(l.id) > 0 || !engine.canLearnLesson(state, l.id)) return;
+  const chosen = academy.getAnswerOrder(l.id)[displayIdx];
+  if (chosen !== l.correct) {
+    academy.recordWrong(l.id);
+    academyWrongId = l.id;
+    renderAcademy();
     return;
   }
-
-  document.getElementById('gpturbo-send')!.addEventListener('click', () => {
-    submitChallenge(challenge);
-  });
-
-  document.getElementById('gpturbo-input')!.addEventListener('keydown', (e) => {
-    if ((e as KeyboardEvent).key === 'Enter' && (e as KeyboardEvent).ctrlKey) {
-      submitChallenge(challenge);
-    }
-  });
+  state = engine.learnLesson(state, l.id);
+  academyWrongId = null;
+  saveSystem.save(state);
+  applyReputationEffects();
+  renderer.markDirty();
+  notifyMilestone(t('acad.done', { title: l.title, bonus: lessonEffectLabel(l.effect) }));
+  playMilestone();
+  flashScreen('ambre', 8);
+  renderAcademy();
+  tabAcademy.querySelector('.acad-stamp-big')?.classList.add('stamp-in');
 }
 
-function submitChallenge(challenge: AcademyChallenge): void {
-  const input  = document.getElementById('gpturbo-input') as HTMLTextAreaElement;
-  const prompt = input.value.trim();
-  if (prompt.length < 3) return;
-
-  const messages = document.getElementById('gpturbo-messages')!;
-  const send     = document.getElementById('gpturbo-send') as HTMLButtonElement;
-  input.disabled = true;
-  send.disabled  = true;
-
-  // Message joueur
-  const userMsg = document.createElement('div');
-  userMsg.className = 'gpturbo-msg-user';
-  userMsg.textContent = prompt;
-  messages.appendChild(userMsg);
-
-  // Typing indicator
-  const typingEl = document.createElement('div');
-  typingEl.className = 'gpturbo-msg-typing';
-  typingEl.innerHTML = '<div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div>';
-  messages.appendChild(typingEl);
-  messages.scrollTop = messages.scrollHeight;
-
-  const result = academy.scorePrompt(challenge, prompt);
-
-  // Délai simulé "l'IA réfléchit"
-  const thinkDelay = 900 + Math.random() * 800;
-  setTimeout(() => {
-    typingEl.remove();
-
-    const aiMsg = document.createElement('div');
-    aiMsg.className = 'gpturbo-msg-ai';
-    messages.appendChild(aiMsg);
-    messages.scrollTop = messages.scrollHeight;
-
-    // Typage animé de la réponse
-    typeText(aiMsg, result.response, 10, () => {
-      messages.scrollTop = messages.scrollHeight;
-      showScore(challenge, result);
+/** À chaque image : badge, boutons de réponse (prix, attente de 20 s), cahier à redessiner. */
+function updateAcademyLive(): void {
+  updateAcademyBadge();
+  if (!tabAcademy.classList.contains('active')) return;
+  if (!academyOpenId) {
+    if (academyKey() !== academyRenderedKey) { renderAcademy(); return; }
+    tabAcademy.querySelectorAll<HTMLElement>('.acad-page.open').forEach(el => {
+      el.classList.toggle('affordable', engine.canLearnLesson(state, el.dataset['lesson']!));
     });
-  }, thinkDelay);
-}
-
-function showScore(
-  challenge: AcademyChallenge,
-  result: ReturnType<AcademySystem['scorePrompt']>,
-): void {
-  const scoreZone = document.getElementById('gpturbo-score-zone')!;
-  const pct       = result.maxScore > 0 ? Math.round((result.score / result.maxScore) * 100) : 100;
-  const tierLabel = result.tier === 'excellent' ? 'Excellent !' : result.tier === 'good' ? 'Bien joué' : result.tier === 'decent' ? 'Pas mal' : 'À améliorer';
-
-  // Critères (pas pour "discovery")
-  const criteriaHtml = challenge.type === 'discovery' ? '' : `
-    <div class="score-criteria">
-      ${result.met.map(c => `
-        <div class="score-row met">
-          <span class="score-row-icon">✓</span>
-          <span>${c.label}</span>
-          <span class="score-row-pts">+${c.points}pts</span>
-        </div>`).join('')}
-      ${result.missed.map(c => `
-        <div class="score-row missed">
-          <span class="score-row-icon">○</span>
-          <span>${c.label}</span>
-          <span class="score-row-pts">+${c.points}pts</span>
-        </div>`).join('')}
-    </div>
-  `;
-
-  // Leçon avec markdown simple (**bold**)
-  const lessonHtml = challenge.lesson.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-
-  // Prochain défi
-  const nextChallenge = CHALLENGES.find(c => c.unlockAfter === challenge.id);
-
-  scoreZone.innerHTML = `
-    <div class="gpturbo-score">
-      <div class="score-header">
-        <span class="score-title">${tierLabel}</span>
-        <span class="score-value ${result.tier}">${challenge.type === 'discovery' ? icon('star') : `${pct}/100`}</span>
-      </div>
-      ${criteriaHtml}
-      <div class="score-lesson">${lessonHtml}</div>
-      <div class="score-reward">
-        <span class="score-reward-item score-reward-euro">+${formatCurrency(challenge.euroReward)}</span>
-        <span class="score-reward-item score-reward-xp">+${challenge.xpReward} XP</span>
-      </div>
-      <button class="btn-next-challenge" id="btn-next-challenge">
-        ${nextChallenge && !academy.isCompleted(nextChallenge.id) ? `Prochain défi : ${nextChallenge.title} →` : '← Retour à l\'Academy'}
-      </button>
-    </div>
-  `;
-  scoreZone.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-
-  // Récompenses
-  if (!academy.isCompleted(challenge.id)) {
-    academy.complete(challenge.id, challenge.xpReward);
-    state = engine.earn(state, challenge.euroReward);
-    saveSystem.save(state);
-    renderer.markDirty();
-    updateAcademyBadge();
-    spawnFloatingNumber(challenge.euroReward, scoreZone);
-    flashScreen('outremer', 8);
-    notify(`Défi complété ! +${formatCurrency(challenge.euroReward)} +${challenge.xpReward} XP`, 'green');
+    return;
   }
-
-  document.getElementById('btn-next-challenge')!.addEventListener('click', () => {
-    if (nextChallenge && !academy.isCompleted(nextChallenge.id)) {
-      academyActiveChallengeId = nextChallenge.id;
-    } else {
-      academyActiveChallengeId = null;
-    }
-    renderAcademy();
-  });
+  const l = ACADEMY_LESSONS.find(x => x.id === academyOpenId);
+  const status = document.getElementById('acad-status');
+  if (!l || !status || engine.isLessonLearned(state, l.id)) return;
+  const wait = academy.getRetrySeconds(l.id);
+  const short = l.cost - state.currency;
+  const blocked = wait > 0 || short > 0 || !engine.canStudyLesson(state, l.id);
+  tabAcademy.querySelectorAll<HTMLButtonElement>('[data-answer]').forEach(b => { b.disabled = blocked; });
+  setText(status, wait > 0 ? t('acad.retryIn', { n: wait }) : short > 0 ? t('acad.missing', { amount: formatCurrency(short) }) : '');
 }
 
 function updateContractProgressBars(): void {

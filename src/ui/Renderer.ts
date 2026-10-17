@@ -3,13 +3,14 @@ import { GameEngine } from '../core/GameEngine.ts';
 import { AGENTS, TEAM_TIERS, TEAM_TIER_MULT, getTeamTier, getTeamTierMultiplier, getNextTeamTier } from '../config/agents.ts';
 import { CLIENTS } from '../config/clients.ts';
 import { UPGRADES } from '../config/upgrades.ts';
-import { formatCurrency, formatRate, formatMultiplier, setText } from '../utils/format.ts';
+import { formatCurrency, formatRate, formatMultiplier, formatDuration, setText } from '../utils/format.ts';
 import { t } from '../i18n/i18n.ts';
 import { icon, AGENT_ICONS, CLIENT_ICONS, upgradeIcon } from './icons.ts';
 
 const COUNTER_RATE = 9; // 1/s : vitesse de rattrapage des compteurs
 const REVEAL_SHARE = 0.25; // un objet bloqué se dévoile à 25 % de son prix
 const BUY_MODE_KEY = 'bot-empire-buy-mode';
+const PAYBACK_REFRESH_MS = 500; // « rentabilisé en … » : recalculé deux fois par seconde
 
 /** Quantité achetée d'un clic sur un agent : 1, 10 ou le maximum abordable. */
 export type BuyMode = '1' | '10' | 'max';
@@ -66,6 +67,7 @@ export class Renderer {
   private elNextPct = document.getElementById('next-client-pct')!;
 
   private buyMode: BuyMode = loadBuyMode();
+  private lastPayback = 0;
   private revealKey = '';
 
   // Compteurs affichés en défilement (tween) vers leur valeur réelle
@@ -181,9 +183,38 @@ export class Renderer {
     if (this.upgradesPanelDirty) {
       this.renderUpgrades(state);
       this.upgradesPanelDirty = false;
+      this.lastPayback = 0;
     } else {
       this.updateUpgradeButtons(state);
     }
+    if (this.engine.hasPaybackDisplay(state) && now - this.lastPayback >= PAYBACK_REFRESH_MS) {
+      this.lastPayback = now;
+      this.updatePayback(state);
+    }
+  }
+
+  // ─── RENTABILITÉ (leçon « Le prix d'un token ») ────────────
+
+  /** Temps pour qu'un achat de `cost` qui ajoute `gain` €/s soit remboursé (vide si aucun gain). */
+  private paybackText(cost: number, gain: number): string {
+    return gain > 0 ? t('agent.payback', { time: formatDuration(cost / gain) }) : '';
+  }
+
+  private updatePayback(state: GameState): void {
+    const rate = this.engine.getTotalRate(state);
+    this.elTabAgents.querySelectorAll<HTMLElement>('[data-payback]').forEach(el => {
+      const id = el.dataset['payback']!;
+      const qty = this.getBuyQuantity(state, id);
+      const next = { ...state, agents: { ...state.agents, [id]: { count: (state.agents[id]?.count ?? 0) + qty } } };
+      setText(el, this.paybackText(this.engine.getAgentBulkCost(state, id, qty), this.engine.getTotalRate(next) - rate));
+    });
+    this.elTabUpgrades.querySelectorAll<HTMLElement>('[data-payback-upgrade]').forEach(el => {
+      const id = el.dataset['paybackUpgrade']!;
+      const def = UPGRADES.find(u => u.id === id);
+      if (!def) return;
+      const next = { ...state, upgradesPurchased: { ...state.upgradesPurchased, [id]: true } };
+      setText(el, this.paybackText(def.cost, this.engine.getTotalRate(next) - rate));
+    });
   }
 
   // ─── PROGRESSION ───────────────────────────────────────────
@@ -310,6 +341,7 @@ export class Renderer {
               ${count > 0 ? `<span class="agent-prod-total">${t('agent.total', { rate: formatRate(prod) })}</span>` : ''}
             </div>
             ${count > 0 ? this.tierLine(count) : ''}
+            ${this.engine.hasPaybackDisplay(state) ? `<div class="agent-payback" data-payback="${def.id}"></div>` : ''}
           </div>
           <div class="agent-right">
             <div class="agent-count">${count}</div>
@@ -424,6 +456,7 @@ export class Renderer {
             <div class="upgrade-name">${def.name}</div>
             <div class="upgrade-desc">${def.description}</div>
             <div class="upgrade-effect">${def.effectLabel}</div>
+            ${!purchased && this.engine.hasPaybackDisplay(state) ? `<div class="agent-payback" data-payback-upgrade="${def.id}"></div>` : ''}
           </div>
           ${purchased
             ? `<button class="btn-upgrade purchased-btn" type="button" disabled>${t('upgrade.bought')}</button>`

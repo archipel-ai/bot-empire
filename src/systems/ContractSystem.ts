@@ -27,7 +27,8 @@ export class ContractSystem {
   private onNewContract?: (contract: ActiveContract) => void;
   private onComplete?:    (contract: ActiveContract) => void;
   private boardSize:      number = BASE_BOARD_SIZE;
-  private rewardBonus:    number = 1; // multiplicateur récompenses (réputation)
+  private rewardBonus:    number = 1; // multiplicateur récompenses (réputation, Academy)
+  private workTimeMult:   number = 1; // durée de travail (Academy : « Exiger un format »)
 
   // ─── INIT ─────────────────────────────────────────────────
 
@@ -45,10 +46,11 @@ export class ContractSystem {
     }
   }
 
-  /** Appelé depuis main.ts quand la réputation change */
-  setReputation(extraSlot: boolean, rewardBonus: number): void {
-    const newSize = extraSlot ? BASE_BOARD_SIZE + 1 : BASE_BOARD_SIZE;
+  /** Appelé depuis main.ts quand la réputation ou l'Academy changent. */
+  setReputation(extraSlots: number, rewardBonus: number, workTimeMult = 1): void {
+    const newSize = BASE_BOARD_SIZE + extraSlots;
     this.rewardBonus = rewardBonus;
+    this.workTimeMult = workTimeMult;
 
     if (newSize > this.boardSize) {
       // Expansion du board
@@ -127,7 +129,7 @@ export class ContractSystem {
   accept(contract: ActiveContract): void {
     const now = Date.now();
     contract.acceptedAt  = now;
-    contract.completesAt = now + contract.workTime * 1000;
+    contract.completesAt = now + contract.workTime * this.workTimeMult * 1000;
     contract.status      = 'accepted';
     this.save();
   }

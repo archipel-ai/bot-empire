@@ -51,8 +51,9 @@ export class SaveSystem {
     if (this.autosaveTimer !== null) { clearInterval(this.autosaveTimer); this.autosaveTimer = null; }
   }
 
-  getOfflineSeconds(state: GameState): number {
-    return Math.min((Date.now() - state.lastSave) / 1000, 8 * 3600);
+  /** Secondes écoulées depuis la dernière sauvegarde, plafonnées (8 h, 12 h avec la leçon « condition d'arrêt »). */
+  getOfflineSeconds(state: GameState, maxHours = 8): number {
+    return Math.min((Date.now() - state.lastSave) / 1000, maxHours * 3600);
   }
 
   isFirstTime(): boolean {
