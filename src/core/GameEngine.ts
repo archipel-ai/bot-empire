@@ -1,5 +1,5 @@
-import { GameState } from './GameState.ts';
-import { AGENTS, AgentDef } from '../config/agents.ts';
+import { type GameState, MAX_AMOUNT } from './GameState.ts';
+import { AGENTS, type AgentDef } from '../config/agents.ts';
 import { CLIENTS } from '../config/clients.ts';
 import { UPGRADES } from '../config/upgrades.ts';
 import { REPUTATION_PERKS, getPrestigeRP } from '../config/reputationPerks.ts';
@@ -13,6 +13,13 @@ const MAX_BULK_BUY             = 1_000; // garde-fou du mode d'achat « max »
 
 export interface TickResult {
   newClients: string[];
+}
+
+/** Somme plafonnée à MAX_AMOUNT : jamais d'Infinity ni de NaN dans l'état. */
+function addCapped(a: number, b: number): number {
+  const sum = a + b;
+  if (Number.isNaN(sum)) return a;
+  return Math.min(sum, MAX_AMOUNT);
 }
 
 export class GameEngine {
@@ -93,11 +100,19 @@ export class GameEngine {
   }
 
   click(state: GameState, marketClickMult = 1): GameState {
-    const value = this.getClickValue(state, marketClickMult);
+    return this.earn(state, this.getClickValue(state, marketClickMult));
+  }
+
+  /**
+   * Ajoute un gain à la trésorerie et au total gagné, plafonnés à MAX_AMOUNT.
+   * Passage obligé de tout revenu (clic, tick, hors ligne, contrats, incidents, Academy).
+   */
+  earn(state: GameState, amount: number): GameState {
+    if (!(amount > 0)) return state;
     return {
       ...state,
-      currency: state.currency + value,
-      totalEarned: state.totalEarned + value,
+      currency: addCapped(state.currency, amount),
+      totalEarned: addCapped(state.totalEarned, amount),
     };
   }
 
@@ -208,9 +223,7 @@ export class GameEngine {
       .map(c => c.id);
 
     const newState: GameState = {
-      ...state,
-      currency: state.currency + earned,
-      totalEarned: state.totalEarned + earned,
+      ...this.earn(state, earned),
       clientsUnlocked: newClientStates,
     };
 
@@ -223,16 +236,9 @@ export class GameEngine {
     const capped = Math.min(seconds, MAX_OFFLINE_HOURS * 3600);
     const rate = this.getTotalRate(state);
     const offlineRate = this.getReputationOfflineRate(state);
-    const earned = rate * capped * offlineRate;
-    if (earned <= 0) return { state, earned: 0 };
-    return {
-      state: {
-        ...state,
-        currency: state.currency + earned,
-        totalEarned: state.totalEarned + earned,
-      },
-      earned,
-    };
+    const earned = Math.min(rate * capped * offlineRate, MAX_AMOUNT);
+    if (!(earned > 0)) return { state, earned: 0 };
+    return { state: this.earn(state, earned), earned };
   }
 
   // ─── PRESTIGE ──────────────────────────────────────────────

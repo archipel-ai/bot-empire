@@ -164,7 +164,7 @@ contractSys.init(
   },
   (contract) => {
     // Contrat complété
-    state = { ...state, currency: state.currency + contract.reward, totalEarned: state.totalEarned + contract.reward };
+    state = engine.earn(state, contract.reward);
     saveSystem.save(state);
     renderer.markDirty();
     notifyMilestone(t('contract.done', { reward: formatCurrency(contract.reward), client: contract.client }));
@@ -785,7 +785,7 @@ function resolveIncident(chosen: number): void {
 
   // Résultat
   if (isRight) {
-    state = { ...state, currency: state.currency + q.reward, totalEarned: state.totalEarned + q.reward };
+    state = engine.earn(state, q.reward);
     incidentResultIcon.innerHTML = icon('check');
     incidentResultIcon.className = 'incident-result-icon ok';
     incidentLesson.textContent     = t('incident.won', { reward: formatCurrency(q.reward), lesson: q.lesson });
@@ -1304,11 +1304,7 @@ function showScore(
   // Récompenses
   if (!academy.isCompleted(challenge.id)) {
     academy.complete(challenge.id, challenge.xpReward);
-    state = {
-      ...state,
-      currency:    state.currency    + challenge.euroReward,
-      totalEarned: state.totalEarned + challenge.euroReward,
-    };
+    state = engine.earn(state, challenge.euroReward);
     saveSystem.save(state);
     renderer.markDirty();
     updateAcademyBadge();

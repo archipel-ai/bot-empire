@@ -46,16 +46,24 @@ export function createInitialState(): GameState {
   };
 }
 
+/**
+ * Plafond de tout montant (argent, gains) : bien en dessous de Number.MAX_VALUE, pour qu'aucun
+ * calcul ne déborde en Infinity. Une valeur infinie ne survit pas à JSON (elle devient null) :
+ * sans ce plafond, une partie très avancée repartirait à 0 € au rechargement.
+ */
+export const MAX_AMOUNT = 1e300;
+
+/** Nombre positif, plafonné à MAX_AMOUNT (un nombre trop grand est ramené au plafond, pas à 0). */
 const num = (v: unknown, fallback = 0): number =>
-  typeof v === 'number' && Number.isFinite(v) && v >= 0 ? v : fallback;
+  typeof v === 'number' && !Number.isNaN(v) && v >= 0 ? Math.min(v, MAX_AMOUNT) : fallback;
 
 const obj = (v: unknown): Record<string, unknown> =>
   v !== null && typeof v === 'object' ? v as Record<string, unknown> : {};
 
 /**
  * Reconstruit un état sûr à partir d'une sauvegarde non fiable (localStorage, fichier importé,
- * lien #save=, cloud). Seules les clés connues sont reprises, avec leur type : un nombre fini
- * et positif, un booléen strict. Tout le reste retombe sur la valeur initiale.
+ * lien #save=, cloud). Seules les clés connues sont reprises, avec leur type : un nombre positif
+ * (plafonné à MAX_AMOUNT), un booléen strict. Tout le reste retombe sur la valeur initiale.
  */
 export function sanitizeState(raw: unknown): GameState {
   const p = obj(raw);

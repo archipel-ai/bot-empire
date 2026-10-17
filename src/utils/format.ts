@@ -11,7 +11,12 @@ export function formatNumber(value: number, decimals = 2): string {
   if (value < 1000) return comma(value.toFixed(decimals));
   const suffixes = FR ? SUFFIXES_FR : SUFFIXES_EN;
   const tier = Math.floor(Math.log10(Math.abs(value)) / 3);
-  const suffix = suffixes[Math.min(tier, suffixes.length - 1)];
+  // Au-delà du dernier suffixe : notation scientifique (« 1,23e33 ») plutôt qu'un suffixe faux
+  if (tier >= suffixes.length) {
+    const exp = Math.floor(Math.log10(Math.abs(value)));
+    return `${comma((value / Math.pow(10, exp)).toFixed(decimals))}e${exp}`;
+  }
+  const suffix = suffixes[tier];
   const scaled = value / Math.pow(1000, tier);
   return FR ? `${comma(scaled.toFixed(decimals))}${NBSP}${suffix}` : `${scaled.toFixed(decimals)}${suffix}`;
 }
