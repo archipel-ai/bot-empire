@@ -1097,7 +1097,7 @@ export class Bureau {
       ctx.textBaseline = 'middle';
       ctx.font = `800 ${Math.max(10, S * 0.22)}px ${this.display}`;
       ctx.fillStyle = rgba(this.C.ambre, 1);
-      ctx.fillText(`×${this.founderMult.toFixed(2)}`, 0, 0);
+      ctx.fillText(formatMultiplier(this.founderMult), 0, 0);
       ctx.restore();
     }
     void cx; void cy;
@@ -1317,7 +1317,7 @@ export class Bureau {
     let y: number;
     if (id === 'founder') {
       title  = t('bureau.founder');
-      detail = this.prestigeCount > 0 ? `×${this.founderMult.toFixed(2)}` : t('bureau.founderHint');
+      detail = this.prestigeCount > 0 ? formatMultiplier(this.founderMult) : t('bureau.founderHint');
       [x, y] = this.iso(0, 0, FOUNDER_HEIGHT);
     } else {
       const post = this.posts.find(p => p.id === id)!;
