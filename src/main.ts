@@ -23,7 +23,7 @@ import { ContractSystem, type ActiveContract } from './systems/ContractSystem.ts
 import { MarketSystem } from './systems/MarketSystem.ts';
 import { AcademySystem } from './systems/AcademySystem.ts';
 import { CHAPTERS, CHALLENGES, getChallengesByChapter, type AcademyChallenge } from './config/academy.ts';
-import { REPUTATION_PERKS, NOTORIETE_INCOME_PER_LEVEL } from './config/reputationPerks.ts';
+import { REPUTATION_PERKS, NOTORIETE_IDS, NOTORIETE_INCOME_PER_LEVEL } from './config/reputationPerks.ts';
 import { spawnFloatingNumber, spawnInkLetters, flashScreen, typeText } from './utils/gamefeel.ts';
 import { formatRate, formatMultiplier } from './utils/format.ts';
 import { AGENTS, TEAM_TIERS, getTeamTier, getTeamTierMultiplier } from './config/agents.ts';
@@ -1005,7 +1005,10 @@ function renderReputation(): void {
   const rp = state.reputationPoints ?? 0;
   const nextRP = engine.getPrestigeRP(state);
 
-  if (rp === 0 && Object.values(state.reputationPurchased ?? {}).every(v => !v)) {
+  // Seuls les bonus de réputation et la Notoriété comptent : le dictionnaire porte aussi
+  // les leçons (acad-*), les références (ref-*) et la clé de transition du prestige.
+  const anyRepBought = [...REPUTATION_PERKS.map(p => p.id), ...NOTORIETE_IDS].some(id => state.reputationPurchased?.[id]);
+  if (rp === 0 && !anyRepBought) {
     tabReputation.innerHTML = `
       <div class="rep-intro">
         <span class="rep-intro-icon">${icon('star')}</span>

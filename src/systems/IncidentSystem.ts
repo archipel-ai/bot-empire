@@ -41,7 +41,7 @@ export const INCIDENTS: IncidentQuestion[] = [
       'Passer en mode conversationnel libre pour plus de souplesse',
     ],
     correct: 1,
-    lesson: 'Pour les domaines critiques, le modèle doit être ancré dans une base validée. Les hallucinations sont réduites de 80%+ quand on gronde le modèle avec des sources fiables.',
+    lesson: 'Pour les domaines critiques, le modèle doit être ancré dans une base validée. Les hallucinations sont réduites de 80%+ quand on ancre le modèle avec des sources fiables.',
     reward: 1200,
   },
   {
