@@ -117,6 +117,9 @@ const CELL           = 2.2;           // écart entre deux postes
 const POST_CELLS: Array<[number, number]> = [[1, 0], [0, 1], [-1, 0], [0, -1], [1, 1], [-1, -1], [1, -1], [-1, 1], [2, 0]];
 const POST_HALF      = TIER_HALF[0]!; // demi-côté d'un socle sans palier (emplacement libre)
 const PLAQUE_MARGIN  = 0.5;           // place du nom gravé devant un poste
+const PLAQUE_NAME_ALPHA = 0.66;       // nom gravé : encre à 66 % (contraste ≈ 4,9:1 sur la dalle ; 42 % donnait 2,5:1)
+const PLAQUE_HALO    = 3;             // px : détourage couleur dalle autour du nom, de l'effectif et du pictogramme
+const PLAQUE_HALO_ALPHA = 0.85;
 const FOUNDER_HALF   = 0.78;
 const FOUNDER_HEIGHT = 30;
 const LETTERS_BASE   = 12;            // lettres d'une nuée pour un seul agent…
@@ -621,11 +624,11 @@ export class Bureau {
       this.drawPost(post);
     }
     if (!founderDrawn) this.drawFounder();
-    // Noms gravés après les socles : un poste haut ne masque jamais le nom de son voisin
-    for (const post of order) this.drawPlaque(post);
-
     this.drawThreads();
     for (const post of order) this.drawCloud(post);
+    // Noms gravés après les socles et les nuées : ni un poste haut, ni le fondateur, ni les
+    // lettres d'un voisin ne masquent le nom d'un poste (détouré pour rester lisible)
+    for (const post of order) this.drawPlaque(post);
     for (const post of order) this.drawBursts(post);
     for (const post of order) this.drawSheet(post);
     this.drawInk();
@@ -973,21 +976,29 @@ export class Bureau {
     const half = TIER_HALF[post.tier]!;
     const path = iconPath2D(post.glyph);
     const inkGlyph = rgba(this.C.encre, 0.7);
+    const halo = rgba(this.slabTop, PLAQUE_HALO_ALPHA);
     if (S < SMALL_S) {
       const gs = Math.max(12, S * 0.5);
       const [x, y] = this.iso(post.gx + half * 0.15, post.gy + half + 0.15);
       const k = gs / 24;
       ctx.save();
       ctx.setTransform(this.dpr * k, 0, 0, this.dpr * k, (x - gs * 0.9) * this.dpr, (y - gs * 0.25) * this.dpr);
-      ctx.strokeStyle = inkGlyph;
-      ctx.lineWidth = 1.6 / k;
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
+      ctx.strokeStyle = halo;
+      ctx.lineWidth = (1.6 + PLAQUE_HALO) / k;
+      ctx.stroke(path);
+      ctx.strokeStyle = inkGlyph;
+      ctx.lineWidth = 1.6 / k;
       ctx.stroke(path);
       ctx.restore();
       ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
       ctx.font = `500 10px ${this.mono}`;
       ctx.textBaseline = 'middle';
+      ctx.lineJoin = 'round';
+      ctx.strokeStyle = halo;
+      ctx.lineWidth = PLAQUE_HALO;
+      ctx.strokeText(`×${post.count}`, x + gs * 0.2, y + gs * 0.25);
       ctx.fillStyle = rgba(this.C.encre, 0.8);
       ctx.fillText(`×${post.count}`, x + gs * 0.2, y + gs * 0.25);
       ctx.textBaseline = 'alphabetic';
@@ -1003,18 +1014,28 @@ export class Bureau {
     const k = gs / 24;
     ctx.translate(0, -gs * 0.78);
     ctx.scale(k, k);
-    ctx.strokeStyle = inkGlyph;
-    ctx.lineWidth = 1.5 / k;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
+    ctx.strokeStyle = halo;
+    ctx.lineWidth = (1.5 + PLAQUE_HALO) / k;
+    ctx.stroke(path);
+    ctx.strokeStyle = inkGlyph;
+    ctx.lineWidth = 1.5 / k;
     ctx.stroke(path);
     ctx.restore();
     ctx.font = `500 ${fs}px ${this.mono}`;
-    ctx.fillStyle = rgba(this.C.encre, 0.42);
     const tx = gs * 1.15;
+    const countText = `×${post.count}`;
+    const cx = tx + ctx.measureText(post.short).width + fs * 0.6;
+    ctx.lineJoin = 'round';
+    ctx.strokeStyle = halo;
+    ctx.lineWidth = PLAQUE_HALO;
+    ctx.strokeText(post.short, tx, 0);
+    ctx.strokeText(countText, cx, 0);
+    ctx.fillStyle = rgba(this.C.encre, PLAQUE_NAME_ALPHA);
     ctx.fillText(post.short, tx, 0);
     ctx.fillStyle = rgba(post.flash > 0 ? this.C.ambre : this.C.encre, post.flash > 0 ? 1 : 0.78);
-    ctx.fillText(`×${post.count}`, tx + ctx.measureText(post.short).width + fs * 0.6, 0);
+    ctx.fillText(countText, cx, 0);
     ctx.restore();
     ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
   }
