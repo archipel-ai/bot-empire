@@ -19,7 +19,7 @@ import {
 } from './systems/DelegationSystem.ts';
 import { LeadLetter } from './ui/LeadLetter.ts';
 import { Hints } from './ui/Hints.ts';
-import { Drawer } from './ui/Drawer.ts';
+import { Drawer, PHONE_QUERY } from './ui/Drawer.ts';
 import { CLIENTS } from './config/clients.ts';
 import { UPGRADES } from './config/upgrades.ts';
 import { CloudSave } from './core/CloudSave.ts';
@@ -838,10 +838,15 @@ function toggleDelegation(key: string): void {
 
 // ─── LETTRE AMBRE ────────────────────────────────────────────
 
-/** La lettre n'apparaît qu'en jeu actif : onglet visible, aucune fenêtre, scène non couverte par le tiroir. */
+/**
+ * La lettre n'apparaît qu'en jeu actif : onglet visible, aucune fenêtre, scène non couverte par le
+ * tiroir. Seul le tiroir du téléphone couvre la scène (sur ordinateur, la poignée se dit toujours dépliée).
+ */
+const phoneLayout = window.matchMedia(PHONE_QUERY);
 function canSpawnLead(): boolean {
-  return !document.hidden && !anyModalOpen()
-    && document.getElementById('drawer-handle')?.getAttribute('aria-expanded') !== 'true';
+  const drawerCovers = phoneLayout.matches
+    && document.getElementById('drawer-handle')?.getAttribute('aria-expanded') === 'true';
+  return !document.hidden && !anyModalOpen() && !drawerCovers;
 }
 
 function catchLead(): void {
