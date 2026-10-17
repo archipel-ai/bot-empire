@@ -5,8 +5,9 @@
  *  - I  : les 4 premiers métiers (Workflows, Copy, Analytics, Audit) ;
  *  - II : tous les métiers disponibles, plus les améliorations.
  * Une passe par seconde : l'agent le moins cher est acheté, encore et encore, tant que le total
- * dépensé pendant la passe reste ≤ 10 % de la trésorerie du début de la passe. Le joueur garde
- * donc 90 % de son argent à chaque seconde pour ses propres achats. Rien ne se passe hors ligne.
+ * dépensé pendant la passe reste sous le plus petit de deux plafonds : 10 % de la trésorerie, et
+ * la moitié du revenu d'une seconde. La Délégation ne dépense donc jamais l'épargne du joueur :
+ * sa trésorerie continue de monter d'au moins la moitié de son revenu. Rien ne se passe hors ligne.
  * Réglages (interrupteur général, un par métier, améliorations) en localStorage : purement locaux.
  */
 
@@ -16,6 +17,7 @@ import { AGENTS } from '../config/agents.ts';
 import { UPGRADES } from '../config/upgrades.ts';
 
 export const DELEGATION_BUDGET_SHARE = 0.10;  // part de la trésorerie dépensable par passe
+export const DELEGATION_INCOME_SHARE = 0.5;   // part du revenu d'une passe que la Délégation peut dépenser
 export const DELEGATION_LEVEL1_AGENTS = 4;    // niveau I : les 4 premiers métiers
 export const DELEGATION_PERIOD_S = 1;         // une passe par seconde
 const MAX_BUYS_PER_PASS = 50;                 // garde-fou
@@ -50,7 +52,10 @@ export function getDelegableAgentIds(level: number): string[] {
 export function runDelegation(engine: GameEngine, state: GameState, level: number, settings: DelegationSettings): DelegationResult {
   const result: DelegationResult = { state, agents: [], upgrades: [] };
   if (level <= 0 || !settings.enabled) return result;
-  let budget = state.currency * DELEGATION_BUDGET_SHARE;
+  let budget = Math.min(
+    state.currency * DELEGATION_BUDGET_SHARE,
+    engine.getTotalRate(state) * DELEGATION_PERIOD_S * DELEGATION_INCOME_SHARE,
+  );
   const ids = getDelegableAgentIds(level).filter(id => settings.agents[id] !== false);
   let s = state;
   for (let i = 0; i < MAX_BUYS_PER_PASS; i++) {

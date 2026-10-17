@@ -1,5 +1,6 @@
 /**
- * Délégation : achat automatique (niveaux I et II), budget de 10 % par passe, interrupteurs.
+ * Délégation : achat automatique (niveaux I et II), budget par passe (10 % de la trésorerie et
+ * moitié du revenu d'une seconde), interrupteurs.
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -7,7 +8,14 @@ import { GameEngine } from '../src/core/GameEngine.ts';
 import { createInitialState, type GameState } from '../src/core/GameState.ts';
 import { runDelegation, getDelegableAgentIds, defaultDelegationSettings } from '../src/systems/DelegationSystem.ts';
 
-const engine = new GameEngine();
+/** Moteur dont on fixe le revenu, pour isoler chaque plafond du budget. */
+class RateEngine extends GameEngine {
+  rate: number;
+  constructor(rate = Infinity) { super(); this.rate = rate; }
+  override getTotalRate(): number { return this.rate; }
+}
+const engine = new RateEngine();   // revenu illimité : seul le plafond de 10 % joue
+const realEngine = new GameEngine();
 
 function state(currency: number, lessons: string[] = [], prestigeCount = 1): GameState {
   const s = createInitialState();
@@ -68,4 +76,25 @@ test('interrupteurs : général, par métier, améliorations', () => {
   assert.ok(noWf.agents.length > 0);
   assert.ok(!noWf.agents.includes('bot-workflows'));
   assert.deepEqual(noWf.upgrades, []);
+});
+
+test("jamais plus de la moitié du revenu d'une seconde, même avec une grosse trésorerie", () => {
+  const e = new RateEngine(1000);
+  const s = state(1e9, ['acad-humain']);
+  const r = runDelegation(e, s, 1, defaultDelegationSettings());
+  assert.ok(r.agents.length > 0);
+  assert.ok(s.currency - r.state.currency <= 500 + 1e-6);
+});
+
+test("l'épargne monte toujours : sur 120 s, la Délégation ne mange pas la trésorerie", () => {
+  let s = state(5_000, ['acad-humain']);
+  s.agents['bot-workflows'] = { count: 30 };
+  s.agents['agent-copy'] = { count: 20 };
+  let previous = s.currency;
+  for (let t = 0; t < 120; t++) {
+    s = { ...s, currency: s.currency + realEngine.getTotalRate(s) };
+    s = runDelegation(realEngine, s, 1, defaultDelegationSettings()).state;
+    assert.ok(s.currency >= previous, `seconde ${t} : ${s.currency} < ${previous}`);
+    previous = s.currency;
+  }
 });

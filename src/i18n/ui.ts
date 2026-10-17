@@ -211,7 +211,7 @@ const fr = {
   'deleg.title2':      'Délégation II',
   'deleg.on':          'Activée',
   'deleg.off':         'En pause',
-  'deleg.rule':        "Chaque seconde, l'agence recrute seule les agents les moins chers, sans dépenser plus de 10 % de votre trésorerie.",
+  'deleg.rule':        "Chaque seconde, l'agence recrute seule les agents les moins chers avec au plus la moitié de ce qu'elle gagne : votre épargne ne baisse jamais.",
   'deleg.roles':       'Métiers délégués',
   'deleg.upgrades':    'Améliorations',
 
@@ -535,7 +535,7 @@ const en: Record<UiKey, string> = {
   'deleg.title2':      'Delegation II',
   'deleg.on':          'On',
   'deleg.off':         'Paused',
-  'deleg.rule':        'Every second, the agency hires the cheapest agents on its own, never spending more than 10% of your cash.',
+  'deleg.rule':        'Every second, the agency hires the cheapest agents on its own with at most half of what it earns: your savings never go down.',
   'deleg.roles':       'Delegated roles',
   'deleg.upgrades':    'Upgrades',
 
