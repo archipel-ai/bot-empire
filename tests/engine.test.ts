@@ -41,3 +41,21 @@ test('sanitizeState plafonne un nombre trop grand au lieu de le remettre à 0', 
   assert.equal(bad.totalEarned, 0);
   assert.equal(bad.prestigeCount, 0);
 });
+
+test("paliers d'équipe : ×1,5 à 25, 50, 100 et 200 agents", async () => {
+  const { getTeamTier, getTeamTierMultiplier, getNextTeamTier, AGENTS } = await import('../src/config/agents.ts');
+  assert.equal(getTeamTier(24), 0);
+  assert.equal(getTeamTier(25), 1);
+  assert.equal(getTeamTier(199), 3);
+  assert.equal(getTeamTier(500), 4);
+  assert.equal(getTeamTierMultiplier(50), 2.25);
+  assert.equal(getNextTeamTier(30), 50);
+  assert.equal(getNextTeamTier(200), null);
+  const def = AGENTS[0]!;
+  const s = createInitialState();
+  s.agents[def.id] = { count: 24 };
+  const at24 = engine.getAgentProduction(s, def);
+  s.agents[def.id] = { count: 25 };
+  const at25 = engine.getAgentProduction(s, def);
+  assert.ok(Math.abs(at25 / at24 - (25 / 24) * 1.5) < 1e-9);
+});

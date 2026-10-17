@@ -8,6 +8,28 @@ export interface AgentDef {
   costMultiplier: number;
 }
 
+/**
+ * Paliers d'équipe : chaque type d'agent produit ×TEAM_TIER_MULT à chacun de ces effectifs
+ * (×5,06 au maximum). Calculés à partir du nombre d'agents : rien n'est sauvegardé.
+ */
+export const TEAM_TIERS: readonly number[] = [25, 50, 100, 200];
+export const TEAM_TIER_MULT = 1.5;
+
+/** Nombre de paliers d'équipe atteints avec `count` agents d'un type (0 à TEAM_TIERS.length). */
+export function getTeamTier(count: number): number {
+  return TEAM_TIERS.filter(th => count >= th).length;
+}
+
+/** Multiplicateur de production d'un type d'agent dû à ses paliers d'équipe. */
+export function getTeamTierMultiplier(count: number): number {
+  return Math.pow(TEAM_TIER_MULT, getTeamTier(count));
+}
+
+/** Effectif du prochain palier, ou null si le dernier est atteint. */
+export function getNextTeamTier(count: number): number | null {
+  return TEAM_TIERS.find(th => count < th) ?? null;
+}
+
 export const AGENTS: AgentDef[] = [
   {
     id: 'bot-workflows',

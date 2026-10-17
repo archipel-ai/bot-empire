@@ -28,6 +28,12 @@ export function formatCurrency(value: number, decimals = 2): string {
   return n.includes(NBSP) ? `${n}€` : `${n}${NBSP}€`;
 }
 
+/** Multiplicateur court : « ×1,5 », « ×2,25 » (anglais : « ×1.5 »). */
+export function formatMultiplier(value: number): string {
+  const s = String(Math.round(value * 100) / 100);
+  return `×${FR ? s.replace('.', ',') : s}`;
+}
+
 export function formatRate(value: number): string {
   return `+${formatCurrency(value)}/s`;
 }

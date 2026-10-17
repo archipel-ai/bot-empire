@@ -1,5 +1,5 @@
 import { type GameState, MAX_AMOUNT } from './GameState.ts';
-import { AGENTS, type AgentDef } from '../config/agents.ts';
+import { AGENTS, type AgentDef, getTeamTierMultiplier } from '../config/agents.ts';
 import { CLIENTS } from '../config/clients.ts';
 import { UPGRADES } from '../config/upgrades.ts';
 import { REPUTATION_PERKS, getPrestigeRP } from '../config/reputationPerks.ts';
@@ -51,7 +51,7 @@ export class GameEngine {
     const count = state.agents[def.id]?.count ?? 0;
     if (count === 0) return 0;
     const agentMult = this.getAgentMultiplier(state, def.id);
-    return def.baseProduction * count * agentMult;
+    return def.baseProduction * count * agentMult * getTeamTierMultiplier(count);
   }
 
   getClientBonus(state: GameState): number {

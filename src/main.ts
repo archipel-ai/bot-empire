@@ -24,8 +24,8 @@ import { AcademySystem } from './systems/AcademySystem.ts';
 import { CHAPTERS, CHALLENGES, getChallengesByChapter, type AcademyChallenge } from './config/academy.ts';
 import { REPUTATION_PERKS } from './config/reputationPerks.ts';
 import { spawnFloatingNumber, spawnInkLetters, flashScreen, typeText } from './utils/gamefeel.ts';
-import { formatRate } from './utils/format.ts';
-import { AGENTS } from './config/agents.ts';
+import { formatRate, formatMultiplier } from './utils/format.ts';
+import { AGENTS, TEAM_TIERS, getTeamTier, getTeamTierMultiplier } from './config/agents.ts';
 import { LANG, setLang, t, translateStaticDom } from './i18n/i18n.ts';
 import { applyContentLanguage } from './i18n/content.ts';
 import { icon, hydrateIcons, PERK_ICONS } from './ui/icons.ts';
@@ -417,10 +417,20 @@ document.getElementById('tab-agents')!.addEventListener('click', (e) => {
   // N'achète que si la quantité affichée est abordable (×10 : tout ou rien)
   if (state.currency < engine.getAgentBulkCost(state, agentId, qty)) return;
   state = engine.buyAgents(state, agentId, qty);
-  if ((state.agents[agentId]?.count ?? 0) > prev) {
+  const now = state.agents[agentId]?.count ?? 0;
+  if (now > prev) {
     renderer.markDirty();
     playPurchase();
     bureau.celebratePurchase(agentId);
+    // Palier d'équipe franchi (25, 50, 100, 200)
+    const tier = getTeamTier(now);
+    if (tier > getTeamTier(prev)) {
+      const def = AGENTS.find(a => a.id === agentId);
+      notifyMilestone(t('tier.reached', {
+        name: def?.name ?? agentId, n: TEAM_TIERS[tier - 1]!, mult: formatMultiplier(getTeamTierMultiplier(now)),
+      }));
+      playMilestone();
+    }
     hints.dismiss('first-agent');
     // Flash achat sur la card
     const card = btn.closest('.agent-card');

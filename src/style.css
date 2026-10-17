@@ -543,6 +543,22 @@ button:focus-visible, label:focus-within, textarea:focus-visible, input:focus-vi
 .agent-prod-unit { color: var(--encre-pale); }
 .agent-prod-total { color: var(--outremer); font-weight: 500; }
 .agent-right { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+/* Paliers d'équipe (25 / 50 / 100 / 200) : l'ambre marque un palier franchi */
+.agent-tier {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 8px;
+  margin-top: 4px;
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 11px;
+  color: var(--encre-pale);
+}
+.agent-tier-bar { width: 36px; height: 4px; border-radius: 99px; background: var(--trait); overflow: hidden; flex-shrink: 0; }
+.agent-tier-bar > span { display: block; height: 100%; background: var(--brume); border-radius: inherit; }
+.agent-tier.reached .agent-tier-bar > span { background: var(--ambre); }
+.agent-tier-bonus { color: var(--ambre); font-weight: 500; }
 .agent-count {
   font-family: var(--display);
   font-variant-numeric: tabular-nums;

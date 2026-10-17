@@ -1,9 +1,9 @@
 import { GameState } from '../core/GameState.ts';
 import { GameEngine } from '../core/GameEngine.ts';
-import { AGENTS } from '../config/agents.ts';
+import { AGENTS, TEAM_TIERS, TEAM_TIER_MULT, getTeamTier, getTeamTierMultiplier, getNextTeamTier } from '../config/agents.ts';
 import { CLIENTS } from '../config/clients.ts';
 import { UPGRADES } from '../config/upgrades.ts';
-import { formatCurrency, formatRate } from '../utils/format.ts';
+import { formatCurrency, formatRate, formatMultiplier } from '../utils/format.ts';
 import { t } from '../i18n/i18n.ts';
 import { icon, AGENT_ICONS, CLIENT_ICONS, upgradeIcon } from './icons.ts';
 
@@ -244,6 +244,24 @@ export class Renderer {
     return { qty, cost, canBuy, label };
   }
 
+  /** Ligne « paliers d'équipe » d'une carte d'agent : bonus acquis et progression vers le suivant. */
+  private tierLine(count: number): string {
+    const tier = getTeamTier(count);
+    const next = getNextTeamTier(count);
+    const prev = tier > 0 ? TEAM_TIERS[tier - 1]! : 0;
+    const pct = next === null ? 100 : Math.floor(((count - prev) / (next - prev)) * 100);
+    const parts: string[] = [];
+    if (tier > 0) parts.push(`<span class="agent-tier-bonus">${t('agent.tierBonus', { mult: formatMultiplier(getTeamTierMultiplier(count)) })}</span>`);
+    parts.push(next === null
+      ? `<span>${t('agent.tierMax')}</span>`
+      : `<span>${t('agent.tierNext', { n: count, target: next, mult: formatMultiplier(TEAM_TIER_MULT) })}</span>`);
+    return `
+      <div class="agent-tier${tier > 0 ? ' reached' : ''}">
+        <span class="agent-tier-bar" aria-hidden="true"><span style="width:${pct}%"></span></span>
+        ${parts.join('')}
+      </div>`;
+  }
+
   private renderAgents(state: GameState): void {
     const modes = BUY_MODES.map(m => `
       <button type="button" class="buy-mode-btn${m === this.buyMode ? ' active' : ''}" data-buy-mode="${m}" aria-pressed="${m === this.buyMode}">
@@ -283,6 +301,7 @@ export class Renderer {
               <span class="agent-prod-unit">${t('agent.perUnit', { rate: formatRate(unitProd) })}</span>
               ${count > 0 ? `<span class="agent-prod-total">${t('agent.total', { rate: formatRate(prod) })}</span>` : ''}
             </div>
+            ${count > 0 ? this.tierLine(count) : ''}
           </div>
           <div class="agent-right">
             <div class="agent-count">${count}</div>
