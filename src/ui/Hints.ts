@@ -7,7 +7,8 @@ import type { UiKey } from '../i18n/ui.ts';
  * chaque bulle pointe un élément et disparaît dès que l'action est faite.
  */
 
-export type HintId = 'first-click' | 'first-agent' | 'first-client';
+export type HintId = 'first-click' | 'first-agent' | 'first-client'
+  | 'tab-academy' | 'tab-contracts' | 'tab-reputation' | 'tab-registre';
 
 interface HintDef {
   text:    UiKey;
@@ -27,6 +28,11 @@ const HINTS: Record<HintId, HintDef> = {
     text:    'hint.firstClient',
     targets: ['.tab[data-tab="clients"]'],
   },
+  // Onglets qui apparaissent au fil de la partie
+  'tab-academy':    { text: 'hint.tabAcademy',    targets: ['.tab[data-tab="academy"]'] },
+  'tab-contracts':  { text: 'hint.tabContracts',  targets: ['.tab[data-tab="contracts"]'] },
+  'tab-reputation': { text: 'hint.tabReputation', targets: ['.tab[data-tab="reputation"]'] },
+  'tab-registre':   { text: 'hint.tabRegistre',   targets: ['.tab[data-tab="registre"]'] },
 };
 
 const SEEN_KEY       = 'bot-empire-hints';

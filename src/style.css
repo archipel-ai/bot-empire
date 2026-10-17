@@ -1485,6 +1485,15 @@ button.acad-page { cursor: pointer; }
   #stage { padding: 10px; gap: 8px; }
 }
 
+/* ===== ONGLET QUI APPARAÎT : son nom s'écrit, souligné d'un trait d'encre ambre ===== */
+.tab.tab-new:not(.active) .tab-label { position: static; width: auto; height: auto; overflow: visible; clip-path: none; }
+.tab.tab-new { color: var(--encre); }
+.tab.tab-new::after {
+  content: ''; position: absolute; left: 10px; right: 10px; bottom: 6px; height: 2px; border-radius: 2px;
+  background: var(--ambre); transform-origin: left center; animation: tab-ink .9s ease-out both;
+}
+@keyframes tab-ink { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+
 /* ===== REGISTRE ET CARNET DE RÉFÉRENCES ===== */
 #tab-registre { container-type: inline-size; }
 .registre, .ref-book { display: flex; flex-direction: column; gap: 8px; }

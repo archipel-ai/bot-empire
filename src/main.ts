@@ -20,7 +20,7 @@ import {
 import { LeadLetter } from './ui/LeadLetter.ts';
 import { StatsSystem } from './systems/StatsSystem.ts';
 import { REFERENCES, REFERENCE_INCOME_BONUS, type ReferenceDef } from './config/references.ts';
-import { Hints } from './ui/Hints.ts';
+import { Hints, type HintId } from './ui/Hints.ts';
 import { Drawer, PHONE_QUERY } from './ui/Drawer.ts';
 import { CLIENTS } from './config/clients.ts';
 import { UPGRADES } from './config/upgrades.ts';
@@ -69,6 +69,7 @@ const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 const stats       = new StatsSystem();
 const GAME_VERSION = '1.2';
 const REFERENCE_CHECK_S = 1; // le carnet vérifie ses conditions une fois par seconde
+const REFERENCE_GROUP_FROM = 3; // à partir de 3 références d'un coup (1re visite en 1.2) : une seule notification
 let referenceTimer = 0;
 const delegation  = loadDelegationSettings();
 let delegationTimer = 0;
@@ -183,8 +184,8 @@ const tabCountContracts = document.getElementById('tab-count-contracts')!;
 
 contractSys.init(
   (contract) => {
-    // Nouveau contrat disponible
-    notify(t('contract.new', { title: contract.title }), 'orange');
+    // Nouveau contrat disponible (annoncé seulement une fois l'onglet Contrats apparu)
+    if (isTabShown('contracts')) notify(t('contract.new', { title: contract.title }), 'orange');
     tabCountContracts.classList.add('has-new');
     renderContracts();
   },
@@ -415,6 +416,7 @@ function gameLoop(timestamp: number): void {
     if (referenceTimer >= REFERENCE_CHECK_S) {
       referenceTimer -= REFERENCE_CHECK_S;
       checkReferences();
+      updateTabs(false);
     }
 
     // Délégation : une passe par seconde
@@ -862,6 +864,42 @@ function toggleDelegation(key: string): void {
   renderer.markDirty();
 }
 
+// ─── ONGLETS PROGRESSIFS ─────────────────────────────────────
+// Les onglets apparaissent au fil de la partie, calculés à partir de l'état (rien n'est sauvegardé).
+// Toute condition tient compte des ventes passées : un onglet déjà vu ne disparaît jamais.
+// Agents, Améliorations et Agence restent toujours visibles.
+
+const TAB_RULES: Record<string, { show: (s: GameState) => boolean; hint?: HintId }> = {
+  academy:    { show: s => s.prestigeCount >= 1 || (s.agents['bot-workflows']?.count ?? 0) >= 1 || engine.getLearnedLessonCount(s) > 0, hint: 'tab-academy' },
+  clients:    { show: s => s.prestigeCount >= 1 || engine.getUnlockedClientCount(s) > 0 },
+  contracts:  { show: s => s.prestigeCount >= 1 || stats.get().playSeconds >= CONTRACTS_TAB_AFTER_S || (s.agents['agent-copy']?.count ?? 0) >= 1, hint: 'tab-contracts' },
+  reputation: { show: s => s.prestigeCount >= 1 || (s.reputationPoints ?? 0) > 0 || engine.canPrestige(s), hint: 'tab-reputation' },
+  registre:   { show: s => s.prestigeCount >= 1 || engine.getReferenceCount(s) > 0, hint: 'tab-registre' },
+};
+const CONTRACTS_TAB_AFTER_S = 180;  // l'onglet Contrats apparaît à 3 min de jeu (ou au 1er Agent Copy)
+const TAB_REVEAL_MS = 4_000;        // l'onglet qui apparaît garde son nom et son trait d'encre 4 s
+const TAB_HINT_MS   = 10_000;
+const shownTabs = new Set<string>(['agents', 'upgrades', 'agency']);
+
+function isTabShown(tab: string): boolean { return shownTabs.has(tab); }
+
+/** Montre les onglets dont la condition est remplie ; `initial` : au chargement, sans animation. */
+function updateTabs(initial: boolean): void {
+  for (const [tab, rule] of Object.entries(TAB_RULES)) {
+    const btn = document.querySelector<HTMLElement>(`.tab[data-tab="${tab}"]`);
+    if (!btn) continue;
+    if (!shownTabs.has(tab) && rule.show(state)) {
+      shownTabs.add(tab);
+      if (!initial) {
+        btn.classList.add('tab-new');
+        setTimeout(() => btn.classList.remove('tab-new'), TAB_REVEAL_MS);
+        if (rule.hint) hints.show(rule.hint, TAB_HINT_MS);
+      }
+    }
+    btn.classList.toggle('hidden', !shownTabs.has(tab));
+  }
+}
+
 // ─── CARNET DE RÉFÉRENCES ET REGISTRE ────────────────────────
 
 type ReferenceFamily = 'team' | 'clients' | 'sales' | 'academy' | 'letters';
@@ -907,9 +945,13 @@ function checkReferences(): void {
   renderer.markDirty();
   tabCountRegistre.classList.add('has-new');
   updateRegistreBadge();
-  for (const id of ids) {
-    const r = REFERENCES.find(x => x.id === id);
-    if (r) notifyMilestone(t('ref.earned', { name: referenceCard(r).name }));
+  if (ids.length >= REFERENCE_GROUP_FROM) {
+    notifyMilestone(t('ref.earnedMany', { n: ids.length, pct: formatNumber(ids.length * REFERENCE_INCOME_BONUS * 100, 1) }));
+  } else {
+    for (const id of ids) {
+      const r = REFERENCES.find(x => x.id === id);
+      if (r) notifyMilestone(t('ref.earned', { name: referenceCard(r).name }));
+    }
   }
   playPurchase();
   if (tabRegistre.classList.contains('active')) renderRegistre();
@@ -928,7 +970,10 @@ function registreRows(): Array<[string, string, string]> {
   const st = stats.get();
   const lessons = engine.getLearnedLessonCount(state);
   const refs = engine.getReferenceCount(state);
-  const firstTry = st.lessonsLearned > 0 ? Math.round((st.lessonsFirstTry / st.lessonsLearned) * 100) : 0;
+  // Part de bonnes réponses du premier coup : seulement quand une leçon a été répondue sur cet appareil
+  const lessonsValue = st.lessonsLearned > 0
+    ? t('reg.lessonsValue', { n: lessons, total: ACADEMY_LESSONS.length, pct: Math.round((st.lessonsFirstTry / st.lessonsLearned) * 100) })
+    : t('reg.lessonsCount', { n: lessons, total: ACADEMY_LESSONS.length });
   return [
     ['play',      t('reg.play'),      formatPlayTime(st.playSeconds)],
     ['run',       t('reg.run'),       formatPlayTime(st.runSeconds)],
@@ -939,7 +984,7 @@ function registreRows(): Array<[string, string, string]> {
     ['letters',   t('reg.letters'),   t('reg.lettersValue', { caught: st.lettersCaught, seen: st.lettersSeen })],
     ['contracts', t('reg.contracts'), String(st.contractsDone)],
     ['incidents', t('reg.incidents'), t('reg.incidentsValue', { solved: st.incidentsSolved, seen: st.incidentsSeen })],
-    ['lessons',   t('reg.lessons'),   t('reg.lessonsValue', { n: lessons, total: ACADEMY_LESSONS.length, pct: firstTry })],
+    ['lessons',   t('reg.lessons'),   lessonsValue],
     ['refs',      t('reg.refs'),      t('reg.refsValue', { n: refs, total: REFERENCES.length, pct: formatNumber(refs * REFERENCE_INCOME_BONUS * 100, 1) })],
   ];
 }
@@ -1709,3 +1754,7 @@ function updateContractProgressBars(): void {
     }
   }
 }
+
+// Onglets visibles au chargement : en fin de module, une fois toutes les constantes initialisées
+// (avant le premier rendu, sans animation ni bulle d'aide).
+updateTabs(true);
