@@ -9,7 +9,7 @@ import { SaveSystem } from './core/SaveSystem.ts';
 import { type GameState } from './core/GameState.ts';
 import { Renderer, type BuyMode } from './ui/Renderer.ts';
 import { Bureau } from './ui/Bureau.ts';
-import { formatCurrency, formatDuration } from './utils/format.ts';
+import { formatCurrency, formatDuration, setText } from './utils/format.ts';
 import { playClick, playPurchase, playClientUnlock, playMilestone, playPrestige, isSoundOn, setSoundOn } from './utils/audio.ts';
 import { EchoSystem } from './systems/EchoSystem.ts';
 import { IncidentSystem, type IncidentQuestion } from './systems/IncidentSystem.ts';
@@ -668,25 +668,25 @@ function updateEchoUI(): void {
   btnEcho.classList.toggle('active-echo', es.isActive);
 
   if (es.isActive) {
-    echoSub.textContent = t('echo.active', { n: es.replayRemaining });
+    setText(echoSub, t('echo.active', { n: es.replayRemaining }));
     echoBarWrap.style.display = '';
     echoBarFill.style.width   = `${(es.replayRemaining / 60) * 100}%`;
-    echoTimerLbl.textContent  = `${es.replayRemaining}s`;
+    setText(echoTimerLbl, `${es.replayRemaining}s`);
   } else if (es.isOnCooldown) {
     const m = Math.floor(es.cooldownRemaining / 60);
     const s = es.cooldownRemaining % 60;
-    echoSub.textContent = t('echo.cooldown', { time: `${m}:${String(s).padStart(2,'0')}` });
+    setText(echoSub, t('echo.cooldown', { time: `${m}:${String(s).padStart(2,'0')}` }));
     echoBarWrap.style.display = '';
     echoBarFill.style.width   = `${((120 - es.cooldownRemaining) / 120) * 100}%`;
-    echoTimerLbl.textContent  = `${m}:${String(s).padStart(2,'0')}`;
+    setText(echoTimerLbl, `${m}:${String(s).padStart(2,'0')}`);
     echoBarFill.classList.add('cooldown');
   } else {
     echoBarFill.classList.remove('cooldown');
     echoBarWrap.style.display    = 'none';
     if (es.clicksRecorded < 3) {
-      echoSub.textContent = t('echo.needClicks', { n: 3 - es.clicksRecorded });
+      setText(echoSub, t('echo.needClicks', { n: 3 - es.clicksRecorded }));
     } else {
-      echoSub.textContent = t('echo.ready', { n: es.clicksRecorded });
+      setText(echoSub, t('echo.ready', { n: es.clicksRecorded }));
     }
   }
 }

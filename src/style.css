@@ -1507,3 +1507,8 @@ button:focus-visible, label:focus-within, textarea:focus-visible, input:focus-vi
 @media (orientation: landscape) and (max-height: 420px) {
   #stage { padding: 10px; gap: 8px; }
 }
+
+/* Le clic vise toujours le bouton lui-même, jamais le texte qu'il contient : ce texte change
+   à chaque image (gain par clic, compte à rebours de l'Écho) et Safari perd le clic
+   quand le nœud sous le curseur est remplacé pendant l'appui. */
+.btn-click *, .btn-echo *, .btn-buy *, .btn-upgrade *, .btn-contract * { pointer-events: none; }

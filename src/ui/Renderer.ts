@@ -3,7 +3,7 @@ import { GameEngine } from '../core/GameEngine.ts';
 import { AGENTS, TEAM_TIERS, TEAM_TIER_MULT, getTeamTier, getTeamTierMultiplier, getNextTeamTier } from '../config/agents.ts';
 import { CLIENTS } from '../config/clients.ts';
 import { UPGRADES } from '../config/upgrades.ts';
-import { formatCurrency, formatRate, formatMultiplier } from '../utils/format.ts';
+import { formatCurrency, formatRate, formatMultiplier, setText } from '../utils/format.ts';
 import { t } from '../i18n/i18n.ts';
 import { icon, AGENT_ICONS, CLIENT_ICONS, upgradeIcon } from './icons.ts';
 
@@ -137,7 +137,7 @@ export class Renderer {
     }
 
     // Left panel
-    this.elClickValue.textContent = `+${formatCurrency(clickVal)}`;
+    setText(this.elClickValue, `+${formatCurrency(clickVal)}`);
     this.elStatAgents.textContent = String(this.engine.getTotalAgentCount(state));
     this.elStatClients.textContent = String(this.engine.getUnlockedClientCount(state));
     this.elStatUpgrades.textContent = String(this.engine.getPurchasedUpgradeCount(state));

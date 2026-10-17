@@ -44,3 +44,11 @@ export function formatDuration(seconds: number): string {
   if (seconds < 86400) return `${Math.floor(seconds / 3600)}h`;
   return t('duration.days', { n: Math.floor(seconds / 86400) });
 }
+
+/**
+ * Ne réécrit un texte que s'il a changé. Remplacer le texte sous le curseur entre l'appui
+ * et le relâchement fait perdre le clic sur Safari : à utiliser pour tout ce qui est mis à jour à chaque image.
+ */
+export function setText(el: Element, text: string): void {
+  if (el.textContent !== text) el.textContent = text;
+}
