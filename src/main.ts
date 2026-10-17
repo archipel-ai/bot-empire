@@ -570,7 +570,7 @@ document.getElementById('btn-prestige')!.addEventListener('click', () => {
   openModal('prestige-overlay', () => {
     document.getElementById('modal-value')!.textContent       = formatCurrency(state.totalEarned);
     document.getElementById('modal-multiplier')!.textContent  = t('prestige.gain', { rp: earnedRP });
-    document.getElementById('modal-total-multi')!.textContent = t('prestige.next', { mult: newMult.toFixed(2), amount: formatCurrency(nextThreshold) });
+    document.getElementById('modal-total-multi')!.textContent = t('prestige.next', { mult: formatNumber(newMult, 2), amount: formatCurrency(nextThreshold) });
   });
 });
 
