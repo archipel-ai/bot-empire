@@ -104,15 +104,16 @@ export function getNotorieteCost(level: number): number {
   return Math.ceil(NOTORIETE_BASE_COST * Math.pow(NOTORIETE_COST_GROWTH, level - 1));
 }
 
-/** RP obtenus quand les gains de la partie égalent l'objectif du premier prestige */
-const RP_AT_FIRST_PRESTIGE = 3;
+/** Clé de transition : posée à la 1re vente faite avec la formule 1.2 (tant qu'elle manque, le seuil 1.1 reste un plafond). */
+export const PRESTIGE_V2_KEY = 'rep-seuil-v2';
+const RP_BASE     = 3; // RP au seuil de la 1re vente
+const RP_PER_SALE = 1; // +1 RP au seuil par vente déjà faite
 
 /**
- * RP gagnés au prestige, proportionnels à la racine carrée des gains de la partie.
- * Normalisé : `referenceEarned` (objectif du 1er prestige) rapporte 3 RP ;
- * gagner 4× plus en rapporte 2× plus.
+ * RP gagnés à la vente : (3 + ventes) × ∛(gains de la partie / seuil de la partie).
+ * Au seuil, on gagne 3 + ventes ; gagner 8× plus que le seuil double les RP.
  */
-export function getPrestigeRP(runEarned: number, referenceEarned: number): number {
-  if (runEarned <= 0 || referenceEarned <= 0) return 0;
-  return Math.floor(RP_AT_FIRST_PRESTIGE * Math.sqrt(runEarned / referenceEarned));
+export function getPrestigeRP(runEarned: number, threshold: number, prestigeCount: number): number {
+  if (runEarned <= 0 || threshold <= 0) return 0;
+  return Math.floor((RP_BASE + RP_PER_SALE * prestigeCount) * Math.cbrt(runEarned / threshold));
 }

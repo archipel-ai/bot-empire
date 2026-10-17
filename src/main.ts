@@ -514,7 +514,7 @@ document.getElementById('btn-prestige')!.addEventListener('click', () => {
   if (!engine.canPrestige(state) || anyModalOpen()) return;
   const newMult   = 1 + (state.prestigeCount + 1) * 0.15;
   const earnedRP  = engine.getPrestigeRP(state);
-  const nextThreshold = engine.getPrestigeThreshold({ ...state, prestigeCount: state.prestigeCount + 1 });
+  const nextThreshold = engine.getNextPrestigeThreshold(state);
   openModal('prestige-overlay', () => {
     document.getElementById('modal-value')!.textContent       = formatCurrency(state.totalEarned);
     document.getElementById('modal-multiplier')!.textContent  = t('prestige.gain', { rp: earnedRP });

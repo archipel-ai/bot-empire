@@ -4,10 +4,12 @@ import { CLIENTS } from '../config/clients.ts';
 import { UPGRADES } from '../config/upgrades.ts';
 import {
   REPUTATION_PERKS, getPrestigeRP, NOTORIETE_IDS, NOTORIETE_MAX_LEVEL, NOTORIETE_INCOME_PER_LEVEL, getNotorieteCost,
+  PRESTIGE_V2_KEY,
 } from '../config/reputationPerks.ts';
 
 const PRESTIGE_BASE           = 10_000_000; // atteint juste après le dernier client (~30 min la 1re partie)
-const PRESTIGE_SCALE          = 1.5;  // ×1.5 par prestige : chaque partie reste plus courte que la précédente
+const PRESTIGE_EXPONENT       = 4;    // seuil = base × (1 + ventes)^4 : fort au début, puis de plus en plus doux
+const LEGACY_PRESTIGE_SCALE   = 1.5;  // seuil 1.1, plafond de transition tant que rep-seuil-v2 n'est pas posée
 const PRESTIGE_BONUS_PER_LEVEL = 0.15;
 const BASE_CLICK_VALUE         = 1;  // 10 clics pour le premier agent (10 €)
 const MAX_OFFLINE_HOURS        = 8;
@@ -286,8 +288,15 @@ export class GameEngine {
 
   // ─── PRESTIGE ──────────────────────────────────────────────
 
+  /**
+   * Objectif de vente de la partie : 10 M€ × (1 + ventes)^4. Pour une partie commencée en 1.1
+   * (clé de transition absente), l'ancien seuil ×1,5 par vente reste un plafond.
+   */
   getPrestigeThreshold(state: GameState): number {
-    return Math.round(PRESTIGE_BASE * Math.pow(PRESTIGE_SCALE, state.prestigeCount));
+    const n = state.prestigeCount;
+    const v2 = PRESTIGE_BASE * Math.pow(1 + n, PRESTIGE_EXPONENT);
+    if (state.reputationPurchased?.[PRESTIGE_V2_KEY]) return Math.round(v2);
+    return Math.round(Math.min(v2, PRESTIGE_BASE * Math.pow(LEGACY_PRESTIGE_SCALE, n)));
   }
 
   canPrestige(state: GameState): boolean {
@@ -300,8 +309,17 @@ export class GameEngine {
 
   /** RP gagnés en vendant maintenant (au minimum ceux du seuil, tant qu'il n'est pas atteint). */
   getPrestigeRP(state: GameState): number {
-    const runEarned = Math.max(state.totalEarned, this.getPrestigeThreshold(state));
-    return getPrestigeRP(runEarned, PRESTIGE_BASE);
+    const threshold = this.getPrestigeThreshold(state);
+    return getPrestigeRP(Math.max(state.totalEarned, threshold), threshold, state.prestigeCount);
+  }
+
+  /** Objectif de la partie suivante, calculé comme après la vente (clé de transition posée). */
+  getNextPrestigeThreshold(state: GameState): number {
+    return this.getPrestigeThreshold({
+      ...state,
+      prestigeCount: state.prestigeCount + 1,
+      reputationPurchased: { ...state.reputationPurchased, [PRESTIGE_V2_KEY]: true },
+    });
   }
 
   prestige(state: GameState): GameState {
@@ -323,7 +341,8 @@ export class GameEngine {
       lastSave:          Date.now(),
       // Réputation : survit au prestige
       reputationPoints:    (state.reputationPoints ?? 0) + earnedRP,
-      reputationPurchased: { ...(state.reputationPurchased ?? {}) },
+      // La 1re vente faite en 1.2 pose la clé de transition : la partie suivante a le nouveau seuil
+      reputationPurchased: { ...(state.reputationPurchased ?? {}), [PRESTIGE_V2_KEY]: true },
     };
     return fresh;
   }
