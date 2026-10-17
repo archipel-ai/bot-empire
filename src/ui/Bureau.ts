@@ -146,7 +146,11 @@ const INK_OUT        = 1.7;           // s : puis renaît
 const REBIRTH_EXTENT = 0.6;
 const NOTEBOOK_ROWS  = 4;             // cahier de l'Academy : 4 lignes de 3 traits par page, 2 pages
 const NOTEBOOK_COLS  = 3;
-const GRADE_MIN_S    = 22;            // px par unité : en dessous, le grade n'est plus lisible sur le dossier
+const GRADE_MIN_S    = 22;
+const DELEG_LETTERS  = 12;            // la nuée assise dans le fauteuil quand la Délégation tourne
+const DELEG_CHARS    = 'delegation';
+const DELEG_FLIGHT_RATE = 1.4;        // 1/s : vitesse d'une lettre du fauteuil vers le poste
+const MAX_DELEG_FLIGHTS = 8;            // px par unité : en dessous, le grade n'est plus lisible sur le dossier
 
 // ─── TYPES ────────────────────────────────────────────────────
 
@@ -254,6 +258,12 @@ export class Bureau {
   private prestigeCount = 0;
   private totalAgents = 0;
   private lessons = 0;                   // leçons de l'Academy acquises (un trait d'encre chacune)
+  private delegation = false;            // Délégation active : une nuée s'assoit dans le fauteuil
+  private delegLetters: Letter[] = Array.from({ length: DELEG_LETTERS }, (_, i) => ({
+    ch: DELEG_CHARS[i % DELEG_CHARS.length]!, a: (i / DELEG_LETTERS) * Math.PI * 2, r: 0.6 + Math.random() * 0.4,
+    h: Math.random(), v: 0.6 + Math.random() * 0.6, ph: Math.random() * Math.PI * 2,
+  }));
+  private delegFlights: Array<{ ch: string; t: number; postId: string }> = [];
   private gradeLabel = '';
   private hovered: string | null = null;
   private touchTimer: ReturnType<typeof setTimeout> | null = null;
@@ -352,6 +362,19 @@ export class Bureau {
     this.freshClient = clientName;
     this.freshTimer = 6;
     this.stampState = { label: t('bureau.signed'), t: this.reduced.matches ? STAMP_IN : 0 };
+  }
+
+  /** Délégation active ou non : la nuée s'assoit dans le fauteuil, ou le quitte. */
+  setDelegation(active: boolean): void {
+    this.delegation = active;
+    if (!active) this.delegFlights = [];
+  }
+
+  /** Achat fait par la Délégation : une lettre part du fauteuil vers le poste (rien en mouvement réduit). */
+  delegateFlight(agentId: string): void {
+    this.celebratePurchase(agentId);
+    if (this.reduced.matches || this.delegFlights.length >= MAX_DELEG_FLIGHTS) return;
+    this.delegFlights.push({ ch: DELEG_CHARS[Math.floor(Math.random() * DELEG_CHARS.length)]!, t: 0, postId: agentId });
   }
 
   /** Prestige : la dalle se vide doucement en encre, puis renaît. */
@@ -506,6 +529,11 @@ export class Bureau {
       if (this.stampState.t > STAMP_IN + STAMP_HOLD + STAMP_OUT) this.stampState = null;
     }
     if (this.freshTimer > 0) this.freshTimer -= dt;
+    if (this.delegation && !still) for (const l of this.delegLetters) l.a += l.v * dt * 0.9;
+    if (this.delegFlights.length) {
+      for (const f of this.delegFlights) f.t += dt * DELEG_FLIGHT_RATE;
+      this.delegFlights = this.delegFlights.filter(f => f.t < 1);
+    }
     if (this.ink >= 0) {
       const before = this.ink;
       this.ink += dt;
@@ -642,6 +670,7 @@ export class Bureau {
     for (const post of order) this.drawPlaque(post);
     for (const post of order) this.drawBursts(post);
     for (const post of order) this.drawSheet(post);
+    this.drawDelegFlights();
     this.drawInk();
     this.drawStamp();
   }
@@ -1100,6 +1129,21 @@ export class Bureau {
     this.poly([P(-s, -s, 13), P(s, -s, 13), P(s, -s, 46), P(-s, -s, 46)]);
     ctx.fill(); ctx.stroke();
 
+    // Délégation : une petite nuée de lettres outremer assise dans le fauteuil
+    if (this.delegation) {
+      const [sx, sy] = P(0, 0, 24);
+      ctx.save();
+      ctx.textAlign = 'center';
+      ctx.font = `500 ${Math.max(7, S * 0.16)}px ${this.mono}`;
+      for (const l of this.delegLetters) {
+        const x = sx + Math.cos(l.a) * S * 0.26 * l.r;
+        const y = sy + Math.sin(l.a) * S * 0.1 * l.r - l.h * S * 0.18;
+        ctx.fillStyle = rgba(this.C.outremer, 0.45 + 0.45 * (Math.sin(l.a) + 1) / 2);
+        ctx.fillText(l.ch, x, y);
+      }
+      ctx.restore();
+    }
+
     // Grade de l'Academy, écrit à la main en bas du dossier
     if (this.lessons > 0 && S >= GRADE_MIN_S) {
       const [gx, gy] = P(0, -s, 20);
@@ -1128,6 +1172,26 @@ export class Bureau {
       ctx.restore();
     }
     void cx; void cy;
+  }
+
+  /** Lettres de la Délégation en vol, du fauteuil vers le poste qui recrute. */
+  private drawDelegFlights(): void {
+    if (!this.delegFlights.length) return;
+    const ctx = this.ctx;
+    const [x0, y0] = this.iso(0, 0, FOUNDER_HEIGHT + 24);
+    ctx.save();
+    ctx.textAlign = 'center';
+    ctx.font = `500 ${Math.max(8, this.S * 0.2)}px ${this.mono}`;
+    for (const f of this.delegFlights) {
+      const post = this.posts.find(p => p.id === f.postId);
+      if (!post || post.count <= 0) continue;
+      const e = easeOut(f.t);
+      const x = x0 + (post.sx - x0) * e;
+      const y = y0 + (post.top - this.S * 0.2 - y0) * e - Math.sin(e * Math.PI) * this.S * 0.6;
+      ctx.fillStyle = rgba(this.C.outremer, 1 - f.t * 0.6);
+      ctx.fillText(f.ch, x, y);
+    }
+    ctx.restore();
   }
 
   /**

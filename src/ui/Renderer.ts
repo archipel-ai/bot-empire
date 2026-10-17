@@ -67,6 +67,8 @@ export class Renderer {
   private elNextPct = document.getElementById('next-client-pct')!;
 
   private buyMode: BuyMode = loadBuyMode();
+  /** Bandeau de la Délégation, posé en tête de l'onglet Agents (fourni par main.ts). */
+  agentsHeader: ((state: GameState) => string) | null = null;
   private lastPayback = 0;
   private revealKey = '';
 
@@ -357,6 +359,7 @@ export class Renderer {
       <div class="buy-mode" role="group" aria-label="${t('buy.label')}">
         <span class="buy-mode-label">${t('buy.label')}</span>${modes}
       </div>
+      ${this.agentsHeader?.(state) ?? ''}
       ${cards}
     `;
   }

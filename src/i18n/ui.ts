@@ -205,6 +205,16 @@ const fr = {
   'incident.solved':   'Incident résolu ! +{reward}',
   'incident.wrong':    'Mauvaise réponse — incident non résolu.',
 
+  // Délégation
+  'deleg.label':       'Délégation',
+  'deleg.title1':      'Délégation I',
+  'deleg.title2':      'Délégation II',
+  'deleg.on':          'Activée',
+  'deleg.off':         'En pause',
+  'deleg.rule':        "Chaque seconde, l'agence recrute seule les agents les moins chers, sans dépenser plus de 10 % de votre trésorerie.",
+  'deleg.roles':       'Métiers délégués',
+  'deleg.upgrades':    'Améliorations',
+
   // Lettre ambre
   'lead.aria':         'Lead entrant : touchez la lettre ambre',
   'lead.boost':        'Lead chaud ! Revenu ×3 pendant 30 s',
@@ -471,6 +481,15 @@ const en: Record<UiKey, string> = {
   'incident.won':      '+{reward} earned! {lesson}',
   'incident.solved':   'Incident solved! +{reward}',
   'incident.wrong':    'Wrong answer — incident not solved.',
+
+  'deleg.label':       'Delegation',
+  'deleg.title1':      'Delegation I',
+  'deleg.title2':      'Delegation II',
+  'deleg.on':          'On',
+  'deleg.off':         'Paused',
+  'deleg.rule':        'Every second, the agency hires the cheapest agents on its own, never spending more than 10% of your cash.',
+  'deleg.roles':       'Delegated roles',
+  'deleg.upgrades':    'Upgrades',
 
   'lead.aria':         'Incoming lead: tap the amber letter',
   'lead.boost':        'Hot lead! Income ×3 for 30s',

@@ -14,6 +14,9 @@ import { playClick, playPurchase, playClientUnlock, playMilestone, playPrestige,
 import { EchoSystem } from './systems/EchoSystem.ts';
 import { IncidentSystem, getIncidentReward, type IncidentQuestion } from './systems/IncidentSystem.ts';
 import { LeadSystem } from './systems/LeadSystem.ts';
+import {
+  runDelegation, getDelegableAgentIds, loadDelegationSettings, saveDelegationSettings, DELEGATION_PERIOD_S,
+} from './systems/DelegationSystem.ts';
 import { LeadLetter } from './ui/LeadLetter.ts';
 import { Hints } from './ui/Hints.ts';
 import { Drawer } from './ui/Drawer.ts';
@@ -61,6 +64,9 @@ const academy     = new AcademySystem();
 const lead        = new LeadSystem();
 const leadLetter  = new LeadLetter(() => catchLead());
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+const delegation  = loadDelegationSettings();
+let delegationTimer = 0;
+renderer.agentsHeader = delegationPanel;
 
 // Marché IA Vivant — éléments bannière
 const marketBanner     = document.getElementById('market-banner')!;
@@ -392,6 +398,13 @@ function gameLoop(timestamp: number): void {
     const newIncident = incident.tick(dt, hasAgents);
     if (newIncident) offerIncident(newIncident);
 
+    // Délégation : une passe par seconde
+    delegationTimer += dt;
+    if (delegationTimer >= DELEGATION_PERIOD_S) {
+      delegationTimer -= DELEGATION_PERIOD_S;
+      delegate();
+    }
+
     // Contrats
     contractSys.tick(state);
 
@@ -440,6 +453,11 @@ btnEcho.addEventListener('click', () => {
 
 // Onglet Agents (délégation d'événements) : Délégation, sélecteur ×1 / ×10 / max, achat d'agents
 document.getElementById('tab-agents')!.addEventListener('click', (e) => {
+  const delegBtn = (e.target as Element).closest('[data-deleg]') as HTMLElement | null;
+  if (delegBtn) {
+    toggleDelegation(delegBtn.dataset['deleg']!);
+    return;
+  }
   const modeBtn = (e.target as Element).closest('[data-buy-mode]') as HTMLElement | null;
   if (modeBtn) {
     renderer.setBuyMode(modeBtn.dataset['buyMode'] as BuyMode);
@@ -754,6 +772,8 @@ function spawnRipple(e: MouseEvent): void {
 }
 
 
+// ─── DÉLÉGATION (le fauteuil vide) ───────────────────────────
+
 /** Palier d'équipe franchi (25, 50, 100, 200) : notification et accord. */
 function announceTier(agentId: string, prev: number, now: number): void {
   const tier = getTeamTier(now);
@@ -763,6 +783,57 @@ function announceTier(agentId: string, prev: number, now: number): void {
     name: def?.name ?? agentId, n: TEAM_TIERS[tier - 1]!, mult: formatMultiplier(getTeamTierMultiplier(now)),
   }));
   playMilestone();
+}
+
+/** Une passe de Délégation : achats, lettres du fauteuil vers les postes, paliers. */
+function delegate(): void {
+  const level = engine.getDelegationLevel(state);
+  bureau.setDelegation(level > 0 && delegation.enabled);
+  if (level <= 0 || !delegation.enabled) return;
+  const before = state;
+  const res = runDelegation(engine, state, level, delegation);
+  if (!res.agents.length && !res.upgrades.length) return;
+  state = res.state;
+  renderer.markDirty();
+  for (const id of new Set(res.agents)) {
+    bureau.delegateFlight(id);
+    announceTier(id, before.agents[id]?.count ?? 0, state.agents[id]?.count ?? 0);
+  }
+  if (res.upgrades.length) notify(t('upgrade.activated'), 'purple');
+}
+
+/** Bandeau en tête de l'onglet Agents : interrupteur général, un par métier, améliorations (niveau II). */
+function delegationPanel(s: GameState): string {
+  const level = engine.getDelegationLevel(s);
+  if (level <= 0) return '';
+  const on = delegation.enabled;
+  const chip = (key: string, label: string, pressed: boolean) =>
+    `<button type="button" class="deleg-chip" data-deleg="${key}" aria-pressed="${pressed}"><span>${label}</span></button>`;
+  const roles = getDelegableAgentIds(level)
+    .filter(id => engine.isAgentAvailable(s, id))
+    .map(id => chip(`agent:${id}`, AGENTS.find(a => a.id === id)?.name ?? id, delegation.agents[id] !== false));
+  if (level >= 2) roles.push(chip('upgrades', t('deleg.upgrades'), delegation.upgrades));
+  return `
+    <section class="deleg${on ? ' on' : ''}" aria-label="${t('deleg.label')}">
+      <div class="deleg-head">
+        <span class="deleg-title">${icon('compass')}${t(level >= 2 ? 'deleg.title2' : 'deleg.title1')}</span>
+        <button type="button" class="deleg-switch" data-deleg="all" role="switch" aria-checked="${on}"><span>${t(on ? 'deleg.on' : 'deleg.off')}</span></button>
+      </div>
+      <p class="deleg-rule">${t('deleg.rule')}</p>
+      <div class="deleg-chips" role="group" aria-label="${t('deleg.roles')}">${roles.join('')}</div>
+    </section>`;
+}
+
+function toggleDelegation(key: string): void {
+  if (key === 'all') delegation.enabled = !delegation.enabled;
+  else if (key === 'upgrades') delegation.upgrades = !delegation.upgrades;
+  else if (key.startsWith('agent:')) {
+    const id = key.slice('agent:'.length);
+    delegation.agents[id] = delegation.agents[id] === false;
+  }
+  saveDelegationSettings(delegation);
+  bureau.setDelegation(engine.getDelegationLevel(state) > 0 && delegation.enabled);
+  renderer.markDirty();
 }
 
 // ─── LETTRE AMBRE ────────────────────────────────────────────
