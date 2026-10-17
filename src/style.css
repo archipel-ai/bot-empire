@@ -1427,12 +1427,16 @@ button.acad-page { cursor: pointer; }
   }
 }
 
+/* Iframe itch.io (640 × 360) : panneau de 339 px, la barre d'onglets se resserre pour garder les 8 onglets visibles */
+@media (max-width: 760px) { .tabs { padding-inline: 6px; gap: 0; } }
+
 /* Panneau étroit (téléphone, iframe itch.io) : l'onglet actif garde son nom mais pas son compteur */
 .tab-panel-wrap, .tabs { container-type: inline-size; }
 @container (max-width: 430px) {
-  .tab { min-width: 40px; }
-  .tab:not(.active) { padding-inline: 8px; }
-  .tab.active { padding-inline: 10px; }
+  /* 8 onglets en 2e partie : 7 × 30 px + l'onglet actif tiennent dans les 339 px de l'iframe itch.io */
+  .tab { min-width: 30px; }
+  .tab:not(.active) { padding-inline: 7px; }
+  .tab.active { padding-inline: 8px; }
   .tab.active .tab-count:not(.has-new):not(.ready) { display: none; }
 }
 
