@@ -125,6 +125,33 @@ export function upgradeIcon(effectType: UpgradeEffect['type'], agentId?: string)
   return (agentId && AGENT_ICONS[agentId]) || 'chip';
 }
 
+const path2DCache = new Map<IconName, Path2D>();
+
+/**
+ * Pictogramme en `Path2D` pour le canvas (grille 24 × 24, à tracer en trait).
+ * Les `<circle>` et `<rect>` du SVG sont convertis en tracés équivalents.
+ */
+export function iconPath2D(name: IconName): Path2D {
+  const cached = path2DCache.get(name);
+  if (cached) return cached;
+  const attr = (tag: string, key: string): number => Number(new RegExp(`\\b${key}="([^"]+)"`).exec(tag)?.[1] ?? 0);
+  const parts: string[] = [];
+  for (const tag of PATHS[name].match(/<(path|circle|rect)\b[^>]*>/g) ?? []) {
+    if (tag.startsWith('<path')) {
+      parts.push(/\bd="([^"]+)"/.exec(tag)?.[1] ?? '');
+    } else if (tag.startsWith('<circle')) {
+      const cx = attr(tag, 'cx'), cy = attr(tag, 'cy'), r = attr(tag, 'r');
+      parts.push(`M${cx - r} ${cy}a${r} ${r} 0 1 0 ${2 * r} 0a${r} ${r} 0 1 0 ${-2 * r} 0`);
+    } else {
+      const x = attr(tag, 'x'), y = attr(tag, 'y'), w = attr(tag, 'width'), h = attr(tag, 'height');
+      parts.push(`M${x} ${y}h${w}v${h}h${-w}z`);
+    }
+  }
+  const path = new Path2D(parts.join(''));
+  path2DCache.set(name, path);
+  return path;
+}
+
 /** Remplit les emplacements `<span data-icon="nom">` du HTML statique. */
 export function hydrateIcons(root: ParentNode = document): void {
   root.querySelectorAll<HTMLElement>('[data-icon]').forEach(el => {

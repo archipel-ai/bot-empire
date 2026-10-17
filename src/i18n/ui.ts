@@ -31,6 +31,16 @@ const fr = {
   'bureau.founderHint': 'Votre fauteuil, au centre',
   'bureau.signed':    'SIGNÉ',
   'bureau.newSpace':  'Nouvel espace',
+  // Noms courts gravés sur la dalle devant chaque poste
+  'post.workflows':   'N8N',
+  'post.copy':        'COPY',
+  'post.analytics':   'DATA',
+  'post.audit':       'AUDIT',
+  'post.legal':       'LÉGAL',
+  'post.growth':      'GROWTH',
+  'post.supervisor':  'SUPERVISOR',
+  'post.rag':         'RAG',
+  'post.voice':       'VOIX',
 
   // Clic
   'click.label':      'Exécuter une tâche',
@@ -239,6 +249,15 @@ const en: Record<UiKey, string> = {
   'bureau.founderHint': 'Your chair, at the centre',
   'bureau.signed':    'SIGNED',
   'bureau.newSpace':  'New space',
+  'post.workflows':   'N8N',
+  'post.copy':        'COPY',
+  'post.analytics':   'DATA',
+  'post.audit':       'AUDIT',
+  'post.legal':       'LEGAL',
+  'post.growth':      'GROWTH',
+  'post.supervisor':  'SUPERVISOR',
+  'post.rag':         'RAG',
+  'post.voice':       'VOICE',
 
   'click.label':      'Run a task',
 

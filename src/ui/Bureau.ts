@@ -1,14 +1,19 @@
 import { GameState } from '../core/GameState.ts';
-import { AGENTS } from '../config/agents.ts';
+import { AGENTS, getTeamTier, getTeamTierMultiplier } from '../config/agents.ts';
 import { CLIENTS } from '../config/clients.ts';
 import { t } from '../i18n/i18n.ts';
+import type { UiKey } from '../i18n/ui.ts';
+import { formatMultiplier } from '../utils/format.ts';
 import { PHONE_QUERY } from './Drawer.ts';
-import { icon, type IconName } from './icons.ts';
+import { icon, iconPath2D, AGENT_ICONS, type IconName } from './icons.ts';
 
 /**
  * Bureau — la scène principale, dessinée dans un seul canvas.
  * Une dalle de porcelaine isométrique qui s'étend avec l'étape ; un socle par type
- * d'agent, surmonté de la nuée de lettres de ce type (densité logarithmique) ;
+ * d'agent, surmonté de la nuée de lettres de ce type (densité logarithmique).
+ * Chaque type se reconnaît à trois signatures : la silhouette de son socle, son
+ * pictogramme et son nom gravés sur la dalle, le mouvement de sa nuée. Le socle
+ * grandit et gagne un étage à chaque palier d'équipe (25, 50, 100, 200) ;
  * de temps en temps une feuille s'écrit au-dessus d'un poste. Le fondateur est un
  * socle doré avec un fauteuil vide, au centre.
  * Inspiré du rendu de la vitrine du studio (dalle, socle, nuée, feuille).
@@ -57,6 +62,52 @@ export const AGENT_LINES: Record<string, string[]> = {
   'agent-voice':      ['appel décroché', 'rendez-vous pris', 'transcription prête', 'standard ouvert 24 h/24', 'rappel programmé', 'appel résumé'],
 };
 
+// ─── SIGNATURES DES POSTES ────────────────────────────────────
+
+/** Silhouette du socle, dessinée en prismes (aucun asset). */
+type Shape = 'octagon' | 'inkwell' | 'stairs' | 'lens' | 'pillars' | 'obelisk' | 'tiered' | 'disks' | 'mic';
+/** Mouvement de la nuée de lettres. */
+type Swarm = 'ring' | 'ribbon' | 'columns' | 'sweep' | 'balance' | 'spiral' | 'halo' | 'inflow' | 'waves';
+
+interface PostStyle {
+  shape: Shape;
+  height: number;   // hauteur de la silhouette (1/60 de S)
+  swarm: Swarm;
+  chars: string;    // lettres de la nuée (ASCII, Latin-1 et ↑ : couverts par la police embarquée)
+  short: UiKey;     // nom court gravé sur la dalle
+  spin: number;     // vitesse de rotation des lettres
+  rise: number;     // vitesse de montée (ou de descente) des lettres
+}
+
+const POST_STYLES: Record<string, PostStyle> = {
+  'bot-workflows':    { shape: 'octagon', height: 16, swarm: 'ring',    chars: '{}[]<>/01',  short: 'post.workflows', spin: 2.4,  rise: 0 },
+  'agent-copy':       { shape: 'inkwell', height: 22, swarm: 'ribbon',  chars: 'aerstn',     short: 'post.copy',      spin: 0,    rise: 1.3 },
+  'agent-analytics':  { shape: 'stairs',  height: 34, swarm: 'columns', chars: '0123456789%', short: 'post.analytics', spin: 0,   rise: 0.8 },
+  'agent-audit':      { shape: 'lens',    height: 24, swarm: 'sweep',   chars: 'vx#?',       short: 'post.audit',     spin: 0,    rise: 0 },
+  'agent-legal':      { shape: 'pillars', height: 30, swarm: 'balance', chars: '§¶©«»',      short: 'post.legal',     spin: 1.1,  rise: 0 },
+  'agent-growth':     { shape: 'obelisk', height: 44, swarm: 'spiral',  chars: '+↑@>',       short: 'post.growth',    spin: 0.4,  rise: 0.9 },
+  'agent-supervisor': { shape: 'tiered',  height: 50, swarm: 'halo',    chars: '·o*',        short: 'post.supervisor', spin: 0.35, rise: 0 },
+  'agent-rag':        { shape: 'disks',   height: 31, swarm: 'inflow',  chars: '#:=~^',      short: 'post.rag',       spin: 0.5,  rise: 0.7 },
+  'agent-voice':      { shape: 'mic',     height: 40, swarm: 'waves',   chars: '~()-.',      short: 'post.voice',     spin: 0,    rise: 0.55 },
+};
+const DEFAULT_STYLE = POST_STYLES['bot-workflows']!;
+
+/** Par palier d'équipe atteint (0 à 4) : demi-côté du socle, rayon et vitesse de la nuée. */
+const TIER_HALF   = [0.50, 0.58, 0.66, 0.74, 0.80];
+const TIER_RADIUS = [1, 1.15, 1.3, 1.45, 1.6];
+const TIER_SPEED  = [1, 1, 1.2, 1.2, 1.2];
+const PLATE_HEIGHT = 6;     // un étage par palier, sous la silhouette
+const PLATE_INSET  = 0.04;  // chaque étage un peu en retrait du précédent
+const TIER_FLASH   = 3;     // s : contour ambre plein quand un palier est franchi
+const TIER_EDGE_ALPHA = 0.35; // puis ambre discret, tant que le palier est acquis
+const SMALL_S      = 30;    // px par unité : en dessous, mode petit écran (glyphe seul, nuée allégée)
+const OUTER_RING   = 1.45;  // 2e cercle de lettres à partir du 3e palier
+const SMALL_ABOVE  = 2.0;   // petit écran : place des nuées (allégées) au-dessus des postes, en S
+const SMALL_ABOVE_LOW = 1.6; // fenêtre très basse : encore un peu moins
+const LOW_CANVAS_H = 300;   // px : en dessous, la scène est « très basse »
+const SMALL_PLAQUE = 0.35;  // petit écran : marge autour d'un poste pour son pictogramme
+const SMALL_MAX_ZOOM = 2;   // petit écran : la caméra ne grossit pas plus que ×2
+
 // ─── RÉGLAGES ─────────────────────────────────────────────────
 
 /** Demi-côté de la dalle (unités de grille) par étape : chambre → siège social. */
@@ -64,8 +115,8 @@ const STAGE_EXTENT   = [1.7, 2.6, 3.2, 3.6, 4.1, 4.6];
 const CELL           = 2.2;           // écart entre deux postes
 /** Place de chaque type d'agent autour du fondateur, dans l'ordre de AGENTS. */
 const POST_CELLS: Array<[number, number]> = [[1, 0], [0, 1], [-1, 0], [0, -1], [1, 1], [-1, -1], [1, -1], [-1, 1], [2, 0]];
-const POST_HALF      = 0.62;          // demi-côté d'un socle
-const POST_HEIGHT    = 26;            // hauteur d'un socle (1/60 de S)
+const POST_HALF      = TIER_HALF[0]!; // demi-côté d'un socle sans palier (emplacement libre)
+const PLAQUE_MARGIN  = 0.5;           // place du nom gravé devant un poste
 const FOUNDER_HALF   = 0.78;
 const FOUNDER_HEIGHT = 30;
 const LETTERS_BASE   = 12;            // lettres d'une nuée pour un seul agent…
@@ -110,6 +161,11 @@ interface Stamp { label: string; t: number; }
 
 interface Post {
   id:      string;
+  style:   PostStyle;
+  glyph:   IconName;
+  short:   string;
+  tier:    number;   // paliers d'équipe atteints (0 à 4)
+  flash:   number;   // s restantes de contour ambre plein
   bursts:  Burst[];
   bounce:  number;
   name:    string;
@@ -153,6 +209,19 @@ function readPalette(): Palette {
 
 const easeOut = (x: number) => 1 - Math.pow(1 - x, 3);
 
+/** Polygone régulier (unités de grille) de rayon `r`, centré sur l'origine. */
+function ngon(sides: number, r: number, rot = 0): Array<[number, number]> {
+  return Array.from({ length: sides }, (_, i) => {
+    const a = rot + (i / sides) * Math.PI * 2;
+    return [Math.cos(a) * r, Math.sin(a) * r] as [number, number];
+  });
+}
+/** Rectangle de demi-côtés `hx` × `hy`, centré sur l'origine. */
+function rect(hx: number, hy: number): Array<[number, number]> {
+  return [[-hx, -hy], [hx, -hy], [hx, hy], [-hx, hy]];
+}
+const square = (half: number) => rect(half, half);
+
 // ─── BUREAU ───────────────────────────────────────────────────
 
 export class Bureau {
@@ -195,6 +264,7 @@ export class Bureau {
   private mono: string; private display: string;
 
   private currentStageId = '';
+  private synced = false;                // premier chargement : pas d'éclat de palier
   onStageChange?: (stage: BureauStage) => void;
 
   constructor() {
@@ -214,10 +284,11 @@ export class Bureau {
 
     this.posts = AGENTS.map((def, i) => {
       const [cx, cy] = POST_CELLS[i % POST_CELLS.length]!;
-      const source = (AGENT_LINES[def.id] ?? [def.name]).join('').replace(/\s+/g, '');
+      const style = POST_STYLES[def.id] ?? DEFAULT_STYLE;
       return {
-        id: def.id, name: def.name, gx: cx * CELL, gy: cy * CELL, count: 0,
-        letters: [], source, sheet: null, sx: 0, sy: 0, top: 0, bursts: [], bounce: 0,
+        id: def.id, name: def.name, style, glyph: AGENT_ICONS[def.id] ?? 'agents', short: t(style.short),
+        tier: 0, flash: 0, gx: cx * CELL, gy: cy * CELL, count: 0,
+        letters: [], source: style.chars, sheet: null, sx: 0, sy: 0, top: 0, bursts: [], bounce: 0,
       };
     });
 
@@ -313,9 +384,13 @@ export class Bureau {
       total += count;
       if (count !== post.count) {
         post.count = count;
+        const tier = getTeamTier(count);
+        if (tier > post.tier && this.synced && !this.reduced.matches) post.flash = TIER_FLASH;
+        post.tier = tier;
         this.resizeCloud(post);
       }
     }
+    this.synced = true;
     this.prestigeCount = state.prestigeCount;
     this.founderMult = 1 + state.prestigeCount * 0.15;
 
@@ -332,7 +407,8 @@ export class Bureau {
     const idx = getStageIndex(totalAgents, prestigeCount);
     const stage = STAGES[idx]!;
     // Dalle : l'étape, mais jamais plus petite que les postes occupés
-    const needed = this.posts.reduce((m, p) => p.count > 0 ? Math.max(m, Math.max(Math.abs(p.gx), Math.abs(p.gy)) + POST_HALF + 0.55) : m, 0);
+    const needed = this.posts.reduce((m, p) => p.count > 0
+      ? Math.max(m, Math.max(Math.abs(p.gx), Math.abs(p.gy)) + TIER_HALF[p.tier]! + PLAQUE_MARGIN) : m, 0);
     this.extTarget = Math.max(STAGE_EXTENT[idx] ?? STAGE_EXTENT[0]!, needed);
 
     if (stage.id === this.currentStageId) return;
@@ -355,7 +431,8 @@ export class Bureau {
   }
 
   private describe(): string {
-    const owned = this.posts.filter(p => p.count > 0).map(p => `${p.name} ×${p.count}`);
+    const owned = this.posts.filter(p => p.count > 0)
+      .map(p => p.tier > 0 ? `${p.name} ×${p.count} (${t('agent.tierBonus', { mult: formatMultiplier(getTeamTierMultiplier(p.count)) })})` : `${p.name} ×${p.count}`);
     return owned.length ? `${t('bureau.title')} — ${owned.join(', ')}` : t('bureau.empty');
   }
 
@@ -392,15 +469,18 @@ export class Bureau {
 
     if (!still) {
       for (const post of this.posts) {
+        const sp = TIER_SPEED[post.tier]!;
+        const { spin, rise } = post.style;
         for (const l of post.letters) {
-          l.a += l.v * dt * 0.6;
-          l.h += l.v * dt * 0.2;
+          l.a += l.v * dt * 0.6 * spin * sp;
+          l.h += l.v * dt * 0.2 * rise * sp;
           if (l.h > 1) l.h -= 1;
         }
       }
     }
 
     for (const post of this.posts) {
+      if (post.flash > 0) post.flash = Math.max(0, post.flash - dt);
       if (post.bounce > 0) post.bounce = Math.max(0, post.bounce - dt);
       if (post.bursts.length) {
         for (const b of post.bursts) b.t += dt * 1.6;
@@ -484,6 +564,41 @@ export class Bureau {
     const used = (2 * e + above + below) * this.S;
     const top = padTop + Math.max(0, (this.H - padTop - padBottom - used) / 2);
     this.CY = top + (above + e) * this.S;
+    if (this.S < SMALL_S) {
+      // Fenêtre très basse (iframe 640×360) : marges réduites, les nuées peuvent mordre sur l'en-tête
+      const low = this.H < LOW_CANVAS_H;
+      this.frameContent(padX, low ? 24 : padTop, low ? 34 : padBottom, below, low ? SMALL_ABOVE_LOW : SMALL_ABOVE);
+    }
+  }
+
+  /**
+   * Petite fenêtre (iframe itch.io, téléphone) : la dalle entière rendrait les postes minuscules.
+   * La caméra cadre alors les postes occupés et le fondateur ; les bords de la dalle sortent du cadre.
+   */
+  private frameContent(padX: number, padTop: number, padBottom: number, below: number, above: number): void {
+    const occupied = this.posts.filter(p => p.count > 0);
+    if (!occupied.length) return;
+    let uMin = Infinity, uMax = -Infinity, vMin = Infinity, vMax = -Infinity;
+    const add = (gx: number, gy: number, half: number) => {
+      for (const [x, y] of [[gx - half, gy - half], [gx + half, gy - half], [gx + half, gy + half], [gx - half, gy + half]] as const) {
+        const u = (x - y) * 0.866, v = (x + y) * 0.5;
+        uMin = Math.min(uMin, u); uMax = Math.max(uMax, u);
+        vMin = Math.min(vMin, v); vMax = Math.max(vMax, v);
+      }
+    };
+    add(0, 0, FOUNDER_HALF);
+    for (const p of occupied) add(p.gx, p.gy, TIER_HALF[p.tier]! + SMALL_PLAQUE);
+    const fit = Math.min(
+      MAX_S, this.S * SMALL_MAX_ZOOM,
+      (this.W - padX * 2) / (uMax - uMin),
+      (this.H - padTop - padBottom) / (vMax - vMin + above + below),
+    );
+    if (fit <= this.S) return;
+    this.S = fit;
+    this.CX = this.W / 2 - ((uMin + uMax) / 2) * fit;
+    const used = (vMax - vMin + above + below) * fit;
+    const top = padTop + Math.max(0, (this.H - padTop - padBottom - used) / 2);
+    this.CY = top + (above - vMin) * fit;
   }
 
   private iso(gx: number, gy: number, z = 0): [number, number] {
@@ -506,7 +621,10 @@ export class Bureau {
       this.drawPost(post);
     }
     if (!founderDrawn) this.drawFounder();
+    // Noms gravés après les socles : un poste haut ne masque jamais le nom de son voisin
+    for (const post of order) this.drawPlaque(post);
 
+    this.drawThreads();
     for (const post of order) this.drawCloud(post);
     for (const post of order) this.drawBursts(post);
     for (const post of order) this.drawSheet(post);
@@ -693,26 +811,233 @@ export class Bureau {
     return P(0, 0, h);
   }
 
+  /**
+   * Prisme droit à base polygonale convexe (sommets en unités de grille, relatifs au centre) :
+   * faces visibles ombrées selon leur orientation, dessus en dégradé. Retourne le centre du dessus.
+   */
+  private prism(gx: number, gy: number, verts: Array<[number, number]>, z0: number, h: number, top: Rgb, edge: string | null): [number, number] {
+    const ctx = this.ctx;
+    const P = (x: number, y: number, z: number) => this.iso(gx + x, gy + y, z);
+    const n = verts.length;
+    for (let i = 0; i < n; i++) {
+      const [x1, y1] = verts[i]!;
+      const [x2, y2] = verts[(i + 1) % n]!;
+      // Normale sortante (le centre est à l'origine) : visible si elle pointe vers l'observateur (+gx +gy)
+      let nx = y2 - y1, ny = x1 - x2;
+      if (nx * (x1 + x2) + ny * (y1 + y2) < 0) { nx = -nx; ny = -ny; }
+      const len = Math.hypot(nx, ny) || 1;
+      nx /= len; ny /= len;
+      if (nx + ny <= 0.001) continue;
+      ctx.fillStyle = rgba(mix(this.faceL, this.faceR, (nx - ny + 1) / 2), 1);
+      this.poly([P(x1, y1, z0), P(x2, y2, z0), P(x2, y2, z0 + h), P(x1, y1, z0 + h)]);
+      ctx.fill();
+    }
+    const topPts = verts.map(([x, y]) => P(x, y, z0 + h));
+    const back = P(-0.7, -0.7, z0 + h), front = P(0.7, 0.7, z0 + h);
+    const g = ctx.createLinearGradient(back[0], back[1], front[0], front[1]);
+    g.addColorStop(0, rgba(mix(top, this.C.socle, 0.6), 1));
+    g.addColorStop(1, rgba(top, 1));
+    ctx.fillStyle = g;
+    this.poly(topPts);
+    ctx.fill();
+    if (edge) {
+      ctx.strokeStyle = edge;
+      ctx.lineWidth = 1.4;
+      this.poly(topPts);
+      ctx.stroke();
+    }
+    return P(0, 0, z0 + h);
+  }
+
+  /** Pyramide (pointe d'obélisque) posée sur une base polygonale. */
+  private pyramid(gx: number, gy: number, verts: Array<[number, number]>, z0: number, h: number): void {
+    const ctx = this.ctx;
+    const P = (x: number, y: number, z: number) => this.iso(gx + x, gy + y, z);
+    const apex = P(0, 0, z0 + h);
+    const n = verts.length;
+    for (let i = 0; i < n; i++) {
+      const [x1, y1] = verts[i]!;
+      const [x2, y2] = verts[(i + 1) % n]!;
+      let nx = y2 - y1, ny = x1 - x2;
+      if (nx * (x1 + x2) + ny * (y1 + y2) < 0) { nx = -nx; ny = -ny; }
+      const len = Math.hypot(nx, ny) || 1;
+      nx /= len; ny /= len;
+      if (nx + ny <= 0.001) continue;
+      ctx.fillStyle = rgba(mix(this.faceL, this.faceR, (nx - ny + 1) / 2), 1);
+      this.poly([P(x1, y1, z0), P(x2, y2, z0), apex]);
+      ctx.fill();
+    }
+  }
+
   private drawPost(post: Post): void {
     if (post.count <= 0) return;
     const hovered = this.hovered === post.id;
     const lift = post.bounce > 0 ? Math.sin((1 - post.bounce / BOUNCE_TIME) * Math.PI) * 8 : 0;
-    const centre = this.block(post.gx, post.gy, POST_HALF, POST_HEIGHT + lift, this.C.socle, this.faceL, this.faceR,
-      rgba(this.C.outremer, hovered ? 0.95 : 0.5));
+    // Contour : ambre plein quand un palier vient d'être franchi, puis ambre discret ; sinon outremer
+    const edge = post.flash > 0
+      ? rgba(this.C.ambre, 0.35 + 0.65 * Math.min(1, post.flash / 1.2))
+      : hovered ? rgba(this.C.outremer, 0.95)
+      : post.tier > 0 ? rgba(this.C.ambre, TIER_EDGE_ALPHA) : rgba(this.C.outremer, 0.5);
+
+    // Étages : un par palier d'équipe, sous la silhouette
+    let half = TIER_HALF[post.tier]!;
+    let z = 0;
+    for (let i = 0; i < post.tier; i++) {
+      this.prism(post.gx, post.gy, square(half), z, PLATE_HEIGHT, this.C.socle, rgba(this.C.encre, 0.14));
+      z += PLATE_HEIGHT;
+      half -= PLATE_INSET;
+    }
+    const centre = this.drawShape(post, half, z + lift, edge);
     post.sx = centre[0];
     post.sy = centre[1];
     post.top = centre[1];
+  }
 
-    // Compteur posé sur la face avant
+  /** Silhouette propre au type d'agent, posée à la hauteur `z0`. Retourne le point de départ de la nuée. */
+  private drawShape(post: Post, h: number, z0: number, edge: string): [number, number] {
+    const { gx, gy } = post;
+    const H = post.style.height;
+    const socle = this.C.socle;
+    const hollow = mix(this.faceR, this.C.encre, 0.08);
+    switch (post.style.shape) {
+      case 'octagon':   // Workflows : dalle basse, coins coupés
+        return this.prism(gx, gy, ngon(8, h * 1.05, Math.PI / 8), z0, H, socle, edge);
+      case 'inkwell': { // Copy : encrier (cylindre et goulot)
+        this.prism(gx, gy, ngon(12, h * 0.95), z0, H - 6, socle, edge);
+        return this.prism(gx, gy, ngon(12, h * 0.38), z0 + H - 6, 6, socle, edge);
+      }
+      case 'stairs': {  // Analytics : trois marches montantes vers le fond
+        const w = (2 * h) / 3;
+        const heights = [H, H * 0.76, H * 0.53];
+        let topPt: [number, number] = this.iso(gx, gy, z0 + H);
+        heights.forEach((bh, i) => {
+          const cx = -h + w * (i + 0.5);
+          const pt = this.prism(gx + cx, gy, rect(w / 2, h), z0, bh, socle, edge);
+          if (i === 0) topPt = pt;
+        });
+        return [this.iso(gx, gy, z0 + H)[0], topPt[1]];
+      }
+      case 'lens': {    // Audit : prisme octogonal au dessus en creux
+        const c = this.prism(gx, gy, ngon(8, h * 1.05, Math.PI / 8), z0, H, socle, edge);
+        this.ctx.fillStyle = rgba(hollow, 1);
+        this.poly(ngon(8, h * 0.62, Math.PI / 8).map(([x, y]) => this.iso(gx + x, gy + y, z0 + H)));
+        this.ctx.fill();
+        return c;
+      }
+      case 'pillars': { // Légal : deux colonnes sous un linteau
+        const ph = H - 8;
+        this.prism(gx - h * 0.5, gy + h * 0.5, square(h * 0.24), z0, ph, socle, null);
+        this.prism(gx + h * 0.5, gy - h * 0.5, square(h * 0.24), z0, ph, socle, null);
+        return this.prism(gx, gy, square(h * 0.95), z0 + ph, 8, socle, edge);
+      }
+      case 'obelisk': { // Growth : prisme étroit et haut, pointe en pyramide
+        const base = square(h * 0.36);
+        this.prism(gx, gy, base, z0, H - 12, socle, edge);
+        this.pyramid(gx, gy, base, z0 + H - 12, 12);
+        return this.iso(gx, gy, z0 + H);
+      }
+      case 'tiered': {  // Supervisor : tour à gradins
+        this.prism(gx, gy, square(h), z0, H * 0.56, socle, edge);
+        return this.prism(gx, gy, square(h * 0.6), z0 + H * 0.56, H * 0.44, socle, edge);
+      }
+      case 'disks': {   // RAG : base de données, trois disques empilés
+        const disk = ngon(12, h * 0.95), core = ngon(12, h * 0.55);
+        const dh = 7, gap = (H - 3 * dh) / 2;
+        let zz = z0;
+        let c: [number, number] = this.iso(gx, gy, z0);
+        for (let i = 0; i < 3; i++) {
+          c = this.prism(gx, gy, disk, zz, dh, socle, edge);
+          zz += dh;
+          if (i < 2) { this.prism(gx, gy, core, zz, gap, socle, null); zz += gap; }
+        }
+        return c;
+      }
+      case 'mic': {     // Voix : micro (pied, tige, capsule)
+        this.prism(gx, gy, ngon(12, h * 0.8), z0, 5, socle, edge);
+        this.prism(gx, gy, ngon(8, h * 0.14), z0 + 5, H * 0.38, socle, null);
+        const zc = z0 + 5 + H * 0.38;
+        this.prism(gx, gy, ngon(12, h * 0.42), zc, H - 5 - H * 0.38 - 4, socle, edge);
+        return this.prism(gx, gy, ngon(12, h * 0.28), z0 + H - 4, 4, socle, edge);
+      }
+    }
+  }
+
+  /**
+   * Plaque gravée devant le poste : pictogramme, nom court et effectif, couchés sur la dalle.
+   * Petit écran : pictogramme agrandi et effectif seulement, à plat face à l'écran pour rester lisibles.
+   */
+  private drawPlaque(post: Post): void {
+    if (post.count <= 0) return;
     const ctx = this.ctx;
-    const [nx, ny] = this.iso(post.gx + POST_HALF * 0.5, post.gy + POST_HALF, POST_HEIGHT * 0.45);
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.font = `500 ${Math.max(10, this.S * 0.2)}px ${this.mono}`;
-    ctx.fillStyle = rgba(this.C.encre, 0.75);
-    ctx.fillText(`×${post.count}`, nx, ny);
-    ctx.textBaseline = 'alphabetic';
-    ctx.textAlign = 'left';
+    const S = this.S;
+    const half = TIER_HALF[post.tier]!;
+    const path = iconPath2D(post.glyph);
+    const inkGlyph = rgba(this.C.encre, 0.7);
+    if (S < SMALL_S) {
+      const gs = Math.max(12, S * 0.5);
+      const [x, y] = this.iso(post.gx + half * 0.15, post.gy + half + 0.15);
+      const k = gs / 24;
+      ctx.save();
+      ctx.setTransform(this.dpr * k, 0, 0, this.dpr * k, (x - gs * 0.9) * this.dpr, (y - gs * 0.25) * this.dpr);
+      ctx.strokeStyle = inkGlyph;
+      ctx.lineWidth = 1.6 / k;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.stroke(path);
+      ctx.restore();
+      ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+      ctx.font = `500 10px ${this.mono}`;
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = rgba(this.C.encre, 0.8);
+      ctx.fillText(`×${post.count}`, x + gs * 0.2, y + gs * 0.25);
+      ctx.textBaseline = 'alphabetic';
+      return;
+    }
+    const fs = Math.max(9, Math.min(13, S * 0.21));
+    const gs = fs * 1.5;
+    const [x, y] = this.iso(post.gx - half, post.gy + half + 0.2);
+    ctx.save();
+    // Repère couché sur le sol, comme les étiquettes des clients
+    ctx.setTransform(this.dpr * 0.866, this.dpr * 0.5, this.dpr * -0.866, this.dpr * 0.5, x * this.dpr, y * this.dpr);
+    ctx.save();
+    const k = gs / 24;
+    ctx.translate(0, -gs * 0.78);
+    ctx.scale(k, k);
+    ctx.strokeStyle = inkGlyph;
+    ctx.lineWidth = 1.5 / k;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.stroke(path);
+    ctx.restore();
+    ctx.font = `500 ${fs}px ${this.mono}`;
+    ctx.fillStyle = rgba(this.C.encre, 0.42);
+    const tx = gs * 1.15;
+    ctx.fillText(post.short, tx, 0);
+    ctx.fillStyle = rgba(post.flash > 0 ? this.C.ambre : this.C.encre, post.flash > 0 ? 1 : 0.78);
+    ctx.fillText(`×${post.count}`, tx + ctx.measureText(post.short).width + fs * 0.6, 0);
+    ctx.restore();
+    ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+  }
+
+  /** Supervisor : fils d'encre pointillés vers les autres postes occupés (masqués en petit écran). */
+  private drawThreads(): void {
+    if (this.S < SMALL_S) return;
+    const sup = this.posts.find(p => p.style.swarm === 'halo' && p.count > 0);
+    if (!sup) return;
+    const ctx = this.ctx;
+    const fromY = sup.top - this.S * 0.8;
+    ctx.save();
+    ctx.strokeStyle = rgba(this.C.outremer, 0.16);
+    ctx.lineWidth = 1;
+    ctx.setLineDash([2, 6]);
+    ctx.beginPath();
+    for (const p of this.posts) {
+      if (p === sup || p.count <= 0) continue;
+      ctx.moveTo(sup.sx, fromY);
+      ctx.lineTo(p.sx, p.top - this.S * 0.2);
+    }
+    ctx.stroke();
+    ctx.restore();
   }
 
   private drawFounder(): void {
@@ -762,28 +1087,106 @@ export class Bureau {
     const ctx = this.ctx;
     const S = this.S;
     const cx = post.sx, cy = post.top;
+    const rMul = TIER_RADIUS[post.tier]!;
     const height = S * 1.5;
     const col = this.C.outremer;
-    const t = this.time;
+    const still = this.reduced.matches;
+    const t = still ? 0 : this.time;
+    const small = S < SMALL_S;
 
     // Lueur au cœur de la nuée
-    const g = ctx.createRadialGradient(cx, cy - height * 0.5, 0, cx, cy - height * 0.5, S * 0.95);
+    const gy = cy - height * 0.5;
+    const g = ctx.createRadialGradient(cx, gy, 0, cx, gy, S * 0.95 * rMul);
     g.addColorStop(0, rgba(col, 0.13));
     g.addColorStop(1, rgba(col, 0));
     ctx.fillStyle = g;
-    ctx.fillRect(cx - S, cy - height * 0.5 - S, S * 2, S * 2);
+    ctx.fillRect(cx - S * rMul, gy - S * rMul, S * 2 * rMul, S * 2 * rMul);
 
     ctx.textAlign = 'center';
     ctx.font = `500 ${Math.max(7, S * 0.17)}px ${this.mono}`;
-    for (const l of post.letters) {
-      const r = l.r * S * (0.55 + 0.1 * Math.sin(t * 0.8 + l.ph));
-      const x = cx + Math.cos(l.a) * r;
-      const y = cy - S * 0.15 - l.h * height + Math.sin(l.a) * r * 0.38 + Math.sin(t * 1.3 + l.ph) * 2;
-      const depth = (Math.sin(l.a) + 1) / 2; // devant / derrière
-      const alpha = (0.3 + 0.62 * depth) * Math.sin(Math.PI * Math.min(1, l.h * 1.1 + 0.02));
+    const R0 = S * 0.6 * rMul;
+    const sp = TIER_SPEED[post.tier]!;
+    post.letters.forEach((l, i) => {
+      if (small && i % 2) return; // petit écran : moitié des lettres
+      const outer = post.tier >= 3 && i % 3 === 2 ? OUTER_RING : 1;
+      let x: number, y: number, alpha: number;
+      switch (post.style.swarm) {
+        case 'ring': {      // anneau plat qui tourne vite (boucle cron)
+          const rr = R0 * (0.85 + 0.25 * l.r) * outer;
+          x = cx + Math.cos(l.a) * rr;
+          y = cy - height * (i % 2 ? 0.62 : 0.42) + Math.sin(l.a) * rr * 0.3 + Math.sin(t * 1.3 + l.ph) * 1.5;
+          alpha = 0.3 + 0.62 * (Math.sin(l.a) + 1) / 2;
+          break;
+        }
+        case 'ribbon': {    // ruban vertical : les lettres descendent, comme une ligne qui s'écrit
+          const off = (l.r - 0.62) * S * 0.32 * rMul * outer;
+          x = cx + off + Math.sin(t * 1.5 + l.ph) * S * 0.03;
+          y = cy - S * 0.15 - (1 - l.h) * height * 1.05;
+          alpha = 0.92 * Math.sin(Math.PI * l.h);
+          break;
+        }
+        case 'columns': {   // trois colonnes de hauteurs différentes, qui respirent
+          const c = i % 3;
+          const colH = height * [0.55, 0.95, 0.75][c]! * (0.85 + 0.15 * Math.sin(t * 1.2 + c * 1.7));
+          x = cx + [-0.38, 0, 0.38][c]! * S * rMul * outer + (l.r - 0.6) * S * 0.07;
+          y = cy - S * 0.1 - l.h * colH;
+          alpha = 0.88 * Math.sin(Math.PI * Math.min(1, l.h * 1.05 + 0.02));
+          break;
+        }
+        case 'sweep': {     // balayage radar : un arc de lettres qui tourne
+          const trail = (l.ph / (Math.PI * 2)) * 1.7;
+          const ang = t * 1.4 * sp - trail;
+          const rr = R0 * (0.25 + 0.85 * l.r) * outer;
+          x = cx + Math.cos(ang) * rr;
+          y = cy - S * 0.55 + Math.sin(ang) * rr * 0.38;
+          alpha = 0.08 + 0.85 * (1 - trail / 1.7);
+          break;
+        }
+        case 'balance': {   // deux petites nuées qui oscillent en balance
+          const side = i % 2 ? 1 : -1;
+          const rr = S * 0.24 * (0.6 + 0.6 * l.r) * rMul;
+          x = cx + side * S * 0.42 * rMul * outer + Math.cos(l.a) * rr;
+          y = cy - S * 0.75 + Math.sin(t * 1.1) * S * 0.14 * side + Math.sin(l.a) * rr * 0.6;
+          alpha = 0.3 + 0.62 * (Math.sin(l.a) + 1) / 2;
+          break;
+        }
+        case 'spiral': {    // spirale montante qui s'évase
+          const ang = l.a + l.h * 9;
+          const rr = S * (0.08 + 0.62 * l.h) * rMul * outer;
+          x = cx + Math.cos(ang) * rr;
+          y = cy - S * 0.1 - l.h * height * 1.1 + Math.sin(ang) * rr * 0.35;
+          alpha = Math.sin(Math.PI * l.h) * (0.35 + 0.6 * (Math.sin(ang) + 1) / 2);
+          break;
+        }
+        case 'halo': {      // halo lent au sommet
+          const rr = R0 * 0.85 * (0.9 + 0.2 * l.r) * outer;
+          x = cx + Math.cos(l.a) * rr;
+          y = cy - height * 0.55 + Math.sin(l.a) * rr * 0.3 + Math.sin(t + l.ph) * 2;
+          alpha = 0.3 + 0.62 * (Math.sin(l.a) + 1) / 2;
+          break;
+        }
+        case 'inflow': {    // les lettres s'enroulent vers le cœur (recherche dans la base)
+          const ang = l.a + l.h * 5;
+          const rr = R0 * (1.05 - l.h) * outer;
+          x = cx + Math.cos(ang) * rr;
+          y = cy - S * 0.55 + Math.sin(ang) * rr * 0.36;
+          alpha = 0.9 * Math.sin(Math.PI * l.h);
+          break;
+        }
+        case 'waves': {     // ondes qui s'éloignent de la capsule
+          const k = (l.h + (i % 3) / 3) % 1;
+          const ang = l.r * Math.PI * 2;
+          const rr = S * (0.15 + 0.85 * k) * rMul * outer;
+          x = cx + Math.cos(ang) * rr;
+          y = cy - S * 0.4 + Math.sin(ang) * rr * 0.7;
+          alpha = 0.85 * (1 - k);
+          break;
+        }
+      }
+      if (alpha <= 0.02) return;
       ctx.fillStyle = rgba(col, alpha);
       ctx.fillText(l.ch, x, y);
-    }
+    });
     ctx.textAlign = 'left';
   }
 
@@ -899,6 +1302,7 @@ export class Bureau {
       const post = this.posts.find(p => p.id === id)!;
       title  = post.name;
       detail = t(post.count > 1 ? 'bureau.agentsPl' : 'bureau.agents', { n: post.count });
+      if (post.tier > 0) detail += ` · ${t('agent.tierBonus', { mult: formatMultiplier(getTeamTierMultiplier(post.count)) })}`;
       x = post.sx;
       y = post.top;
     }
