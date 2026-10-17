@@ -14,6 +14,7 @@ import { MARKET_EVENTS } from '../config/marketEvents.ts';
 import { INCIDENTS, type IncidentQuestion } from '../systems/IncidentSystem.ts';
 import { STAGES, AGENT_LINES } from '../ui/Bureau.ts';
 import { ACADEMY_LESSONS, type AcademyLesson } from '../config/academy.ts';
+import { REFERENCES, type ReferenceDef } from '../config/references.ts';
 
 const EN_AGENTS: Record<string, { name: string; description: string }> = {
   'bot-workflows':    { name: 'Workflow Bot',     description: 'Automates repetitive tasks with n8n' },
@@ -373,6 +374,43 @@ const EN_ACADEMY: Record<string, LessonText> = {
   },
 };
 
+/** Carnet de références : secteur et témoignage (et le nom quand il se traduit). */
+const EN_REFERENCES: Record<string, Partial<Pick<ReferenceDef, 'name' | 'sector' | 'quote'>>> = {
+  'ref-bot-workflows-25':     { sector: 'Printing',            quote: 'Our quotes go out on their own since your workflows took over.' },
+  'ref-bot-workflows-100':    { sector: 'Logistics',           quote: 'A hundred workflows, and not one forgotten order.' },
+  'ref-agent-copy-25':        { sector: 'Cosmetics',           quote: 'Our product pages have never been this clear.' },
+  'ref-agent-copy-100':       { sector: 'Publishing',          quote: 'The whole catalog rewritten before the book fair.' },
+  'ref-agent-analytics-25':   { sector: 'Mobility',            quote: 'We finally know which stations to restock in the morning.' },
+  'ref-agent-analytics-100':  { name: 'Vercors Dairy Co-op', sector: 'Food industry', quote: 'Our collection forecasts land within 3%.' },
+  'ref-agent-audit-25':       { name: 'Hélios Accountants', sector: 'Accounting', quote: 'An audit a week, without losing our evenings.' },
+  'ref-agent-audit-100':      { sector: 'Insurance',           quote: 'Every one of our processing pipelines, scrutinised.' },
+  'ref-agent-legal-25':       { sector: 'Video games',         quote: 'Our terms of use finally fit on one readable page.' },
+  'ref-agent-legal-100':      { sector: 'Construction',        quote: 'Two hundred supplier contracts reviewed before the merger.' },
+  'ref-agent-growth-25':      { name: 'Harbour Brewery', sector: 'Drinks', quote: 'Thirty new bars in one quarter.' },
+  'ref-agent-growth-100':     { sector: 'Energy',              quote: 'Our order book is full until the summer.' },
+  'ref-agent-supervisor-25':  { name: 'Saint-Roch Clinic', sector: 'Healthcare', quote: 'Schedules build themselves, and they are fair.' },
+  'ref-agent-supervisor-100': { name: 'South Atlantic Region', sector: 'Local government', quote: 'Our whole administration runs on your agents.' },
+  'ref-client-restaurant-local': { quote: 'Lunch bookings take care of themselves.' },
+  'ref-client-cabinet-medical':  { quote: 'GDPR-compliant, and our patients can tell.' },
+  'ref-client-pme-ecommerce':    { quote: 'We caught up with our competitors in a month.' },
+  'ref-client-groupe-hotelier':  { quote: 'Our virtual concierge speaks twelve languages.' },
+  'ref-client-grand-compte':     { quote: 'Flawless execution, as promised.' },
+  'ref-client-gouvernement':     { quote: 'The State trusts you. So do we.' },
+  'ref-client-banque-nova':      { quote: 'Every answer cites the internal rule behind it.' },
+  'ref-client-eurosante':        { quote: 'Forty hospitals, and not one byte of data leaves.' },
+  'ref-vente-1':  { name: 'Albatros Fund',     sector: 'Investment',          quote: 'A first sale, and a fine valuation.' },
+  'ref-vente-3':  { name: 'Vauclair Bank',     sector: 'Finance',             quote: 'Three agencies sold: that\'s no longer luck.' },
+  'ref-vente-4':  { name: "Buyers' Circle",    sector: 'Business network',    quote: 'You come up as the example at every meeting.' },
+  'ref-vente-5':  { sector: 'Business press',  quote: 'The serial entrepreneur of AI: that\'s you.' },
+  'ref-vente-10': { name: 'The Ten Club',      sector: 'Investors',           quote: 'Ten sales. You need no introduction.' },
+  'ref-acad-5':   { name: 'Pixel School',      sector: 'Training',            quote: 'Your interns learn fast.' },
+  'ref-acad-12':  { name: 'Arles Campus',      sector: 'Higher education',    quote: 'Come and teach a class to our students.' },
+  'ref-acad-24':  { name: 'Mentor Institute',  sector: 'Research',            quote: 'You have learned it all. Now pass it on.' },
+  'ref-ambre-1':  { name: 'Morning Mail',      sector: 'Prospect',            quote: 'You answered within the minute.' },
+  'ref-ambre-10': { name: 'Sauvage Workshops', sector: 'Crafts',              quote: 'Ten requests, ten quick answers.' },
+  'ref-ambre-50': { name: 'Small Business Union', sector: 'Trade association', quote: 'Fifty companies found you on their own.' },
+};
+
 const EN_STAGES: Record<string, { label: string; sublabel: string }> = {
   'chambre':     { label: 'Teen bedroom',      sublabel: 'The journey starts here' },
   'home-office': { label: 'Home office',       sublabel: 'The first projects roll in' },
@@ -408,4 +446,5 @@ export function applyContentLanguage(): void {
   STAGES.forEach(s => Object.assign(s, EN_STAGES[s.id]));
   Object.entries(EN_AGENT_LINES).forEach(([id, lines]) => { AGENT_LINES[id] = lines; });
   ACADEMY_LESSONS.forEach(l => Object.assign(l, EN_ACADEMY[l.id]));
+  REFERENCES.forEach(r => Object.assign(r, EN_REFERENCES[r.id]));
 }

@@ -2,6 +2,7 @@ import { type GameState, MAX_AMOUNT, createInitialState } from './GameState.ts';
 import { AGENTS, type AgentDef, getTeamTierMultiplier } from '../config/agents.ts';
 import { CLIENTS } from '../config/clients.ts';
 import { UPGRADES } from '../config/upgrades.ts';
+import { REFERENCES, REFERENCE_INCOME_BONUS, type ReferenceCondition } from '../config/references.ts';
 import { ACADEMY_LESSONS, LEGACY_ACADEMY_MAP, type AcademyEffect, type AcademyLesson, type LessonCondition } from '../config/academy.ts';
 import {
   REPUTATION_PERKS, getPrestigeRP, NOTORIETE_IDS, NOTORIETE_MAX_LEVEL, NOTORIETE_INCOME_PER_LEVEL, getNotorieteCost,
@@ -119,12 +120,13 @@ export class GameEngine {
     return agentProd * this.getIncomeMultiplier(state);
   }
 
-  /** Multiplicateurs permanents de revenu : upgrades globaux × prestige × réputation × Academy. */
+  /** Multiplicateurs permanents de revenu : upgrades globaux × prestige × réputation × Academy × références. */
   private getIncomeMultiplier(state: GameState): number {
     return this.getGlobalUpgradeMultiplier(state)
       * this.getPrestigeMultiplier(state)
       * this.getReputationIncomeMult(state)
-      * this.academyEffects(state, 'global_multiplier').reduce((acc, e) => acc * e.multiplier, 1);
+      * this.academyEffects(state, 'global_multiplier').reduce((acc, e) => acc * e.multiplier, 1)
+      * this.getReferenceIncomeMult(state);
   }
 
   // ─── CLIC ──────────────────────────────────────────────────
@@ -570,6 +572,43 @@ export class GameEngine {
   /** Niveau de Délégation (0, I ou II) donné par l'arbre. */
   getDelegationLevel(state: GameState): 0 | 1 | 2 {
     return this.academyEffects(state, 'delegation').reduce<0 | 1 | 2>((acc, e) => (e.level > acc ? e.level : acc), 0);
+  }
+
+  // ─── CARNET DE RÉFÉRENCES ──────────────────────────────────
+
+  getReferenceCount(state: GameState): number {
+    return REFERENCES.filter(r => state.reputationPurchased?.[r.id]).length;
+  }
+
+  /** +0,5 % de revenu par référence obtenue. */
+  getReferenceIncomeMult(state: GameState): number {
+    return 1 + REFERENCE_INCOME_BONUS * this.getReferenceCount(state);
+  }
+
+  /** La condition d'une référence est-elle remplie ? `letters` : lettres ambre attrapées (statistiques locales). */
+  isReferenceConditionMet(state: GameState, c: ReferenceCondition, letters: number): boolean {
+    switch (c.type) {
+      case 'agents':   return (state.agents[c.agentId]?.count ?? 0) >= c.count;
+      case 'client':   return !!state.clientsUnlocked[c.clientId];
+      case 'prestige': return state.prestigeCount >= c.count;
+      case 'lessons':  return this.getLearnedLessonCount(state) >= c.count;
+      case 'letters':  return letters >= c.count;
+    }
+  }
+
+  /** Références nouvellement obtenues (condition remplie, pas encore dans le carnet). */
+  getNewReferences(state: GameState, letters: number): string[] {
+    return REFERENCES
+      .filter(r => !state.reputationPurchased?.[r.id] && this.isReferenceConditionMet(state, r.condition, letters))
+      .map(r => r.id);
+  }
+
+  /** Ajoute des références au carnet (clés ref-* de reputationPurchased, gardées pour toujours). */
+  grantReferences(state: GameState, ids: readonly string[]): GameState {
+    if (!ids.length) return state;
+    const reputationPurchased = { ...state.reputationPurchased };
+    for (const id of ids) reputationPurchased[id] = true;
+    return { ...state, reputationPurchased };
   }
 
   // ─── STATS ─────────────────────────────────────────────────

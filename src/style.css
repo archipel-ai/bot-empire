@@ -1485,6 +1485,41 @@ button.acad-page { cursor: pointer; }
   #stage { padding: 10px; gap: 8px; }
 }
 
+/* ===== REGISTRE ET CARNET DE RÉFÉRENCES ===== */
+#tab-registre { container-type: inline-size; }
+.registre, .ref-book { display: flex; flex-direction: column; gap: 8px; }
+.ref-book { margin-top: 8px; }
+.registre-sub { font-size: 12px; color: var(--encre-pale); }
+.registre-rows { background: var(--socle); border: 1px solid var(--trait); border-radius: var(--radius); padding: 6px 14px; }
+.registre-row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 6px 0; border-bottom: 1px dashed var(--trait); }
+.registre-row:last-child { border-bottom: none; }
+.registre-row dt { font-size: 13px; color: var(--encre-pale); }
+.registre-row dd { font-family: var(--mono); font-size: 13px; font-variant-numeric: tabular-nums; text-align: right; }
+.btn-copy-stats {
+  align-self: flex-start; min-height: 44px; padding: 8px 16px; cursor: pointer;
+  background: var(--socle); color: var(--outremer); font-weight: 600; font-size: 13px;
+  border: 1px solid var(--outremer); border-radius: var(--radius);
+}
+.btn-copy-stats span { display: inline-flex; align-items: center; gap: 6px; }
+.btn-copy-stats:hover { background: color-mix(in srgb, var(--outremer) 8%, var(--socle)); }
+.registre-manual { display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: var(--encre-pale); }
+.registre-manual textarea { width: 100%; font-family: var(--mono); font-size: 12px; padding: 8px; border: 1px solid var(--trait-fort); border-radius: 8px; background: var(--socle); resize: vertical; }
+.ref-cards { list-style: none; display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px; padding: 0 10px 10px; }
+.ref-card {
+  position: relative; padding: 10px 12px; border-radius: 6px; min-height: 64px;
+  border: 1px dashed var(--brume); color: var(--brume);
+}
+.ref-card.owned { border: 1px solid color-mix(in srgb, var(--ambre) 45%, transparent); background: var(--socle); color: var(--encre); }
+.ref-card-name { font-weight: 600; font-size: 13px; padding-right: 92px; }
+.ref-card-sector { font-family: var(--mono); font-size: 11px; color: inherit; opacity: .85; }
+.ref-card.owned .ref-card-sector { color: var(--encre-pale); }
+.ref-card-quote { font-size: 12px; margin-top: 4px; color: var(--encre); }
+.ref-stamp {
+  position: absolute; top: 8px; right: 8px; transform: rotate(-8deg);
+  font-family: var(--display); font-weight: 800; font-size: 9px; letter-spacing: .08em;
+  color: var(--ambre); border: 2px solid var(--ambre); border-radius: 4px; padding: 0 5px;
+}
+
 /* ===== DÉLÉGATION (onglet Agents) ===== */
 .deleg { background: var(--socle); border: 1px dashed var(--trait-fort); border-radius: var(--radius); padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
 .deleg.on { border-style: solid; border-color: color-mix(in srgb, var(--outremer) 40%, transparent); }
@@ -1535,4 +1570,4 @@ button.acad-page { cursor: pointer; }
    quand le nœud sous le curseur est remplacé pendant l'appui. */
 .btn-click *, .btn-echo *, .btn-buy *, .btn-upgrade *, .btn-contract *,
 .acad-page *, .acad-answer *, .gpturbo-back *, .btn-rep-buy *, .lead-letter *,
-.deleg-switch *, .deleg-chip * { pointer-events: none; }
+.deleg-switch *, .deleg-chip *, .btn-copy-stats * { pointer-events: none; }

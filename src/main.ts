@@ -18,6 +18,8 @@ import {
   runDelegation, getDelegableAgentIds, loadDelegationSettings, saveDelegationSettings, DELEGATION_PERIOD_S,
 } from './systems/DelegationSystem.ts';
 import { LeadLetter } from './ui/LeadLetter.ts';
+import { StatsSystem } from './systems/StatsSystem.ts';
+import { REFERENCES, REFERENCE_INCOME_BONUS, type ReferenceDef } from './config/references.ts';
 import { Hints } from './ui/Hints.ts';
 import { Drawer, PHONE_QUERY } from './ui/Drawer.ts';
 import { CLIENTS } from './config/clients.ts';
@@ -34,7 +36,7 @@ import {
 import type { UiKey } from './i18n/ui.ts';
 import { REPUTATION_PERKS, NOTORIETE_IDS, NOTORIETE_INCOME_PER_LEVEL } from './config/reputationPerks.ts';
 import { spawnInkLetters, flashScreen } from './utils/gamefeel.ts';
-import { formatRate, formatMultiplier } from './utils/format.ts';
+import { formatRate, formatMultiplier, formatNumber } from './utils/format.ts';
 import { AGENTS, TEAM_TIERS, getTeamTier, getTeamTierMultiplier } from './config/agents.ts';
 import { LANG, setLang, t, translateStaticDom } from './i18n/i18n.ts';
 import { applyContentLanguage } from './i18n/content.ts';
@@ -64,6 +66,10 @@ const academy     = new AcademySystem();
 const lead        = new LeadSystem();
 const leadLetter  = new LeadLetter(() => catchLead());
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+const stats       = new StatsSystem();
+const GAME_VERSION = '1.2';
+const REFERENCE_CHECK_S = 1; // le carnet vérifie ses conditions une fois par seconde
+let referenceTimer = 0;
 const delegation  = loadDelegationSettings();
 let delegationTimer = 0;
 renderer.agentsHeader = delegationPanel;
@@ -111,6 +117,10 @@ const tabCountReputation = document.getElementById('tab-count-reputation')!;
 // Academy — onglet
 const tabAcademy      = document.getElementById('tab-academy')!;
 const tabCountAcademy = document.getElementById('tab-count-academy')!;
+
+// Registre — onglet
+const tabRegistre      = document.getElementById('tab-registre')!;
+const tabCountRegistre = document.getElementById('tab-count-registre')!;
 let academyOpenId: string | null = null;      // fiche de leçon ouverte (null : le cahier)
 let academyWrongId: string | null = null;     // dernière leçon ratée (message sous la question)
 const academyOpenBranches = new Set<string>(); // branches dépliées par le joueur
@@ -149,6 +159,7 @@ saveSystem.startAutosave(() => state);
 
 // Appliquer réputation au démarrage
 applyReputationEffects();
+updateRegistreBadge();
 
 // Restaurer la bannière marché si un événement est déjà actif
 {
@@ -180,6 +191,7 @@ contractSys.init(
   (contract) => {
     // Contrat complété
     state = engine.earn(state, contract.reward);
+    stats.contractDone();
     saveSystem.save(state);
     renderer.markDirty();
     notifyMilestone(t('contract.done', { reward: formatCurrency(contract.reward), client: contract.client }));
@@ -359,7 +371,7 @@ function gameLoop(timestamp: number): void {
 
     // Lettre ambre : apparaît en jeu actif seulement ; son ×3 se cumule avec un événement de marché
     const leadEvent = lead.tick(dt, canSpawnLead(), engine.getLeadIntervalMult(state), reducedMotion.matches);
-    if (leadEvent === 'spawn') leadLetter.show(reducedMotion.matches);
+    if (leadEvent === 'spawn') { leadLetter.show(reducedMotion.matches); stats.letterSeen(); }
     if (leadEvent === 'expire') leadLetter.hide();
 
     const incomeMult = engine.getEffectiveMarketMult(state, market.getIncomeMultiplier()) * lead.getIncomeMultiplier();
@@ -398,6 +410,13 @@ function gameLoop(timestamp: number): void {
     const newIncident = incident.tick(dt, hasAgents);
     if (newIncident) offerIncident(newIncident);
 
+    stats.tick(dt, engine.getTotalRate(state));
+    referenceTimer += dt;
+    if (referenceTimer >= REFERENCE_CHECK_S) {
+      referenceTimer -= REFERENCE_CHECK_S;
+      checkReferences();
+    }
+
     // Délégation : une passe par seconde
     delegationTimer += dt;
     if (delegationTimer >= DELEGATION_PERIOD_S) {
@@ -421,6 +440,7 @@ function gameLoop(timestamp: number): void {
   updateContractProgressBars();
   updateAcademyLive();
   updateLeadUI();
+  updateRegistreLive();
   hints.reposition();
   requestAnimationFrame(gameLoop);
 }
@@ -433,6 +453,7 @@ requestAnimationFrame(gameLoop);
 function handleClick(e: MouseEvent | PointerEvent): void {
   state = engine.click(state, market.getClickMultiplier() * lead.getClickMultiplier());
   echo.recordClick();
+  stats.addClick();
   renderer.markDirty();
   spawnInkLetters(e.currentTarget as HTMLElement, elCurrency, CLICK_LETTERS_MIN + Math.floor(Math.random() * 3));
   playClick();
@@ -531,6 +552,10 @@ document.querySelectorAll('.tab').forEach(tab => {
       academyOpenId = null;
       renderAcademy();
     }
+    if (target === 'registre') {
+      tabCountRegistre.classList.remove('has-new');
+      renderRegistre();
+    }
   });
 });
 
@@ -549,6 +574,7 @@ document.getElementById('btn-prestige')!.addEventListener('click', () => {
 
 document.getElementById('btn-prestige-confirm')!.addEventListener('click', () => {
   const rpGained = engine.getPrestigeRP(state);
+  stats.prestige(state.totalEarned);
   state = engine.prestige(state);
   milestoneIdx = 0;
   applyReputationEffects();
@@ -836,6 +862,171 @@ function toggleDelegation(key: string): void {
   renderer.markDirty();
 }
 
+// ─── CARNET DE RÉFÉRENCES ET REGISTRE ────────────────────────
+
+type ReferenceFamily = 'team' | 'clients' | 'sales' | 'academy' | 'letters';
+const REFERENCE_FAMILIES: readonly ReferenceFamily[] = ['team', 'clients', 'sales', 'academy', 'letters'];
+
+function referenceFamily(r: ReferenceDef): ReferenceFamily {
+  switch (r.condition.type) {
+    case 'agents':   return 'team';
+    case 'client':   return 'clients';
+    case 'prestige': return 'sales';
+    case 'lessons':  return 'academy';
+    case 'letters':  return 'letters';
+  }
+}
+
+/** Nom et secteur affichés : ceux du client pour une fiche « client signé ». */
+function referenceCard(r: ReferenceDef): { name: string; sector: string } {
+  if (r.condition.type === 'client') {
+    const id = r.condition.clientId;
+    const c = CLIENTS.find(x => x.id === id);
+    return { name: c?.name ?? id, sector: c?.sector ?? '' };
+  }
+  return { name: r.name, sector: r.sector };
+}
+
+function referenceConditionLabel(r: ReferenceDef): string {
+  const c = r.condition;
+  switch (c.type) {
+    case 'agents':   return t('ref.cond.agents', { n: c.count, agent: AGENTS.find(a => a.id === c.agentId)?.name ?? c.agentId });
+    case 'client':   return t('ref.cond.client', { client: referenceCard(r).name });
+    case 'prestige': return c.count <= 1 ? t('ref.cond.prestige1') : t('ref.cond.prestigeN', { n: c.count });
+    case 'lessons':  return t('ref.cond.lessons', { n: c.count });
+    case 'letters':  return c.count <= 1 ? t('ref.cond.letters1') : t('ref.cond.lettersN', { n: c.count });
+  }
+}
+
+/** Ajoute au carnet les références dont la condition vient d'être remplie. */
+function checkReferences(): void {
+  const ids = engine.getNewReferences(state, stats.get().lettersCaught);
+  if (!ids.length) return;
+  state = engine.grantReferences(state, ids);
+  saveSystem.save(state);
+  renderer.markDirty();
+  tabCountRegistre.classList.add('has-new');
+  updateRegistreBadge();
+  for (const id of ids) {
+    const r = REFERENCES.find(x => x.id === id);
+    if (r) notifyMilestone(t('ref.earned', { name: referenceCard(r).name }));
+  }
+  playPurchase();
+  if (tabRegistre.classList.contains('active')) renderRegistre();
+}
+
+/** « 3 h 12 min » ou « 14 min ». */
+function formatPlayTime(seconds: number): string {
+  const total = Math.floor(seconds / 60);
+  const h = Math.floor(total / 60);
+  const m = total % 60;
+  return h > 0 ? t('reg.hm', { h, m }) : t('reg.m', { m });
+}
+
+/** Lignes du registre : clé, libellé, valeur (recalculées à chaque affichage). */
+function registreRows(): Array<[string, string, string]> {
+  const st = stats.get();
+  const lessons = engine.getLearnedLessonCount(state);
+  const refs = engine.getReferenceCount(state);
+  const firstTry = st.lessonsLearned > 0 ? Math.round((st.lessonsFirstTry / st.lessonsLearned) * 100) : 0;
+  return [
+    ['play',      t('reg.play'),      formatPlayTime(st.playSeconds)],
+    ['run',       t('reg.run'),       formatPlayTime(st.runSeconds)],
+    ['clicks',    t('reg.clicks'),    formatNumber(st.clicks, 0)],
+    ['sales',     t('reg.sales'),     String(state.prestigeCount)],
+    ['bestRate',  t('reg.bestRate'),  formatRate(st.bestRate)],
+    ['earned',    t('reg.earned'),    formatCurrency(st.pastRunsEarned + state.totalEarned)],
+    ['letters',   t('reg.letters'),   t('reg.lettersValue', { caught: st.lettersCaught, seen: st.lettersSeen })],
+    ['contracts', t('reg.contracts'), String(st.contractsDone)],
+    ['incidents', t('reg.incidents'), t('reg.incidentsValue', { solved: st.incidentsSolved, seen: st.incidentsSeen })],
+    ['lessons',   t('reg.lessons'),   t('reg.lessonsValue', { n: lessons, total: ACADEMY_LESSONS.length, pct: firstTry })],
+    ['refs',      t('reg.refs'),      t('reg.refsValue', { n: refs, total: REFERENCES.length, pct: formatNumber(refs * REFERENCE_INCOME_BONUS * 100, 1) })],
+  ];
+}
+
+function statsText(): string {
+  const sep = LANG === 'fr' ? ' : ' : ': ';
+  return [t('reg.copyHeader', { version: GAME_VERSION }), ...registreRows().map(([, label, value]) => `${label}${sep}${value}`)].join('\n');
+}
+
+function updateRegistreBadge(): void {
+  setText(tabCountRegistre, `${engine.getReferenceCount(state)}/${REFERENCES.length}`);
+}
+
+function renderRegistre(): void {
+  const owned = (r: ReferenceDef) => !!state.reputationPurchased[r.id];
+  const families = REFERENCE_FAMILIES.map(f => {
+    const refs = REFERENCES.filter(r => referenceFamily(r) === f);
+    const done = refs.filter(owned).length;
+    const cards = refs.map(r => {
+      const card = referenceCard(r);
+      const got = owned(r);
+      return `
+        <li class="ref-card${got ? ' owned' : ''}">
+          <div class="ref-card-name">${got ? card.name : '???'}</div>
+          <div class="ref-card-sector">${got ? card.sector : referenceConditionLabel(r)}</div>
+          ${got ? `<p class="ref-card-quote">« ${r.quote} »</p><span class="ref-stamp">${t('ref.stamp')}</span>` : ''}
+        </li>`;
+    }).join('');
+    return `
+      <details class="acad-branch ref-family"${done > 0 ? ' open' : ''}>
+        <summary class="acad-branch-head">
+          <span class="acad-branch-name">${t(`ref.family.${f}` as UiKey)}</span>
+          <span class="acad-branch-count">${done}/${refs.length}</span>
+          <span class="chapter-chevron">${icon('chevron')}</span>
+        </summary>
+        <ul class="ref-cards">${cards}</ul>
+      </details>`;
+  }).join('');
+
+  tabRegistre.innerHTML = `
+    <section class="registre" aria-labelledby="reg-title">
+      <div class="stats-title" id="reg-title">${t('reg.title')}</div>
+      <p class="registre-sub">${t('reg.sub')}</p>
+      <dl class="registre-rows">
+        ${registreRows().map(([key, label]) => `<div class="registre-row"><dt>${label}</dt><dd data-stat="${key}"></dd></div>`).join('')}
+      </dl>
+      <button type="button" class="btn-copy-stats" id="btn-copy-stats"><span>${icon('document')}${t('reg.copy')}</span></button>
+      <div class="registre-manual hidden" id="registre-manual">
+        <label for="registre-text">${t('reg.copyManual')}</label>
+        <textarea id="registre-text" readonly rows="8"></textarea>
+      </div>
+    </section>
+    <section class="ref-book" aria-labelledby="ref-title">
+      <div class="stats-title" id="ref-title">${t('ref.title')}</div>
+      <p class="registre-sub">${t('ref.sub')}</p>
+      ${families}
+    </section>
+  `;
+  registreShownAt = 0;
+  updateRegistreLive();
+  document.getElementById('btn-copy-stats')!.addEventListener('click', () => {
+    const text = statsText();
+    const manual = () => {
+      const box = document.getElementById('registre-manual')!;
+      const area = document.getElementById('registre-text') as HTMLTextAreaElement;
+      area.value = text;
+      box.classList.remove('hidden');
+      area.select();
+    };
+    if (!navigator.clipboard) { manual(); return; }
+    navigator.clipboard.writeText(text).then(() => notify(t('reg.copied'), 'green')).catch(manual);
+  });
+}
+
+/** Valeurs du registre rafraîchies une fois par seconde quand l'onglet est ouvert. */
+let registreShownAt = 0;
+function updateRegistreLive(): void {
+  if (!tabRegistre.classList.contains('active')) return;
+  const now = performance.now();
+  if (now - registreShownAt < 1000) return;
+  registreShownAt = now;
+  for (const [key, , value] of registreRows()) {
+    const el = tabRegistre.querySelector(`[data-stat="${key}"]`);
+    if (el) setText(el, value);
+  }
+}
+
 // ─── LETTRE AMBRE ────────────────────────────────────────────
 
 /**
@@ -852,6 +1043,7 @@ function canSpawnLead(): boolean {
 function catchLead(): void {
   const res = lead.catch(engine.getTotalRate(state), state.currency, engine.getLeadIntervalMult(state));
   if (!res) return;
+  stats.letterCaught();
   leadLetter.burst(elCurrency);
   playLead();
   if (res.effect === 'cash') {
@@ -879,6 +1071,7 @@ let currentIncidentReward = 0; // figée à l'apparition : max(montant fixe, 30 
 function offerIncident(q: IncidentQuestion): void {
   currentIncident   = q;
   currentIncidentReward = getIncidentReward(q.reward, engine.getTotalRate(state));
+  stats.incidentSeen();
   incidentOfferLeft = INCIDENT_OFFER_DURATION;
 
   const el = document.createElement('div');
@@ -964,6 +1157,7 @@ function resolveIncident(chosen: number): void {
   if (isRight) {
     const reward = currentIncidentReward || q.reward;
     state = engine.earn(state, reward);
+    stats.incidentSolved();
     incidentResultIcon.innerHTML = icon('check');
     incidentResultIcon.className = 'incident-result-icon ok';
     incidentLesson.textContent     = t('incident.won', { reward: formatCurrency(reward), lesson: q.lesson });
@@ -1461,11 +1655,13 @@ function answerLesson(l: AcademyLesson, displayIdx: number): void {
   const chosen = academy.getAnswerOrder(l.id)[displayIdx];
   if (chosen !== l.correct) {
     academy.recordWrong(l.id);
+    stats.lessonWrong(l.id);
     academyWrongId = l.id;
     renderAcademy();
     return;
   }
   state = engine.learnLesson(state, l.id);
+  stats.lessonLearned(l.id);
   academyWrongId = null;
   saveSystem.save(state);
   applyReputationEffects();
