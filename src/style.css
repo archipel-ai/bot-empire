@@ -1492,6 +1492,13 @@ button:focus-visible, label:focus-within, textarea:focus-visible, input:focus-vi
   .btn-echo { padding: 0 14px; min-height: 52px; border-radius: 999px; }
   .echo-sub, .echo-timer-label { display: none; }
 }
+/* Scène très étroite (iframe 640×360 : ~300 px) : le libellé et le gain ne tiennent pas sur une
+   ligne (le texte débordait des deux côtés, coupé). On les empile ; l'ellipse reste un filet de sécurité. */
+@container stage (max-width: 330px) {
+  .btn-click { flex-direction: column; gap: 0; padding: 6px 12px; }
+  .btn-click-label { font-size: 13px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+  .btn-click-value { font-size: 11px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+}
 @media (min-width: 640px) and (max-width: 899px) and (orientation: landscape) {
   .currency-display { gap: 16px; }
   .currency-total { display: none; }
