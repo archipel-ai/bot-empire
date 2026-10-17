@@ -1155,12 +1155,14 @@ export class Bureau {
           break;
         }
         case 'sweep': {     // balayage radar : un arc de lettres qui tourne
-          const trail = (l.ph / (Math.PI * 2)) * 1.7;
-          const ang = t * 1.4 * sp - trail;
-          const rr = R0 * (0.25 + 0.85 * l.r) * outer;
+          // traîne large (près de 3/4 de tour) pour que les lettres s'étalent au lieu de former un paquet
+          const TRAIL = 4.4;
+          const trail = (l.ph / (Math.PI * 2)) * TRAIL;
+          const ang = t * 1.1 * sp - trail;
+          const rr = R0 * (0.4 + 0.95 * l.r) * outer;
           x = cx + Math.cos(ang) * rr;
-          y = cy - S * 0.55 + Math.sin(ang) * rr * 0.38;
-          alpha = 0.08 + 0.85 * (1 - trail / 1.7);
+          y = cy - S * 0.6 + Math.sin(ang) * rr * 0.42;
+          alpha = 0.1 + 0.8 * (1 - trail / TRAIL);
           break;
         }
         case 'balance': {   // deux petites nuées qui oscillent en balance
