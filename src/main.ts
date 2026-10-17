@@ -245,6 +245,28 @@ if (urlState) {
 // 3. Bulle d'aide : premier clic (nouvelle partie uniquement)
 if (state.totalEarned === 0 && state.prestigeCount === 0) hints.show('first-click');
 
+// ─── MISE À JOUR 1.1 : annonce unique pour les joueurs qui avaient déjà vendu leur agence ──
+// Le drapeau vit dans sa propre clé localStorage : GameState ne peut pas gagner de champ (règles Firebase).
+const SEEN_V11_KEY = 'bot-empire-seen-v1.1';
+try {
+  if (!localStorage.getItem(SEEN_V11_KEY)) {
+    localStorage.setItem(SEEN_V11_KEY, '1');
+    if (state.prestigeCount >= 1) announceUpdate11(state.prestigeCount);
+  }
+} catch { /* stockage indisponible : pas d'annonce */ }
+
+function announceUpdate11(prestigeCount: number): void {
+  const opened = <T extends { minPrestige?: number; name: string }>(list: T[]) =>
+    list.filter(x => (x.minPrestige ?? 0) >= 1 && (x.minPrestige ?? 0) <= prestigeCount).map(x => x.name);
+  const names = [...opened(AGENTS), ...opened(CLIENTS), ...opened(UPGRADES)];
+  if (!names.length) return;
+  // Après la rafale de signatures du chargement, pour ne pas être chassée par elle
+  setTimeout(() => {
+    notifyMilestone(t('markets.list', { list: names.join(', ') }));
+    bureau.announce(t('markets.kicker'), names.slice(0, 2).join(' · '), names.slice(2).join(' · '));
+  }, NEW_MARKETS_DELAY_MS);
+}
+
 // ─── STOCKAGE INDISPONIBLE ───────────────────────────────────
 // Sans stockage, rien n'est gardé (et Firebase créerait un nouveau compte anonyme à chaque visite) :
 // on prévient le joueur, sans fermeture automatique, et on coupe la sauvegarde cloud.
