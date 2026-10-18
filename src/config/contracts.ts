@@ -203,7 +203,7 @@ export const CONTRACTS: ContractDef[] = [
     id: 'acquisition-ia',
     client: 'VentureCapital', clientIcon: '💼',
     title: 'Acquisition — valorisation IA',
-    description: 'Un VC veut racheter ta technologie. Négo express, window de 6h.',
+    description: 'Un VC veut racheter votre technologie. Négo express, window de 6h.',
     reward: 1_000_000, duration: 6 * 3600, workTime: 500,
     rarity: 'epic', requiresAgent: { id: 'agent-supervisor', count: 3 },
   },

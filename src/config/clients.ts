@@ -65,7 +65,7 @@ export const CLIENTS: ClientDef[] = [
     icon: '🏛️',
     bonusPerSecond: 2_000,        // était 500
     unlockRateRequired: 15_000,
-    unlockDialogue: 'MinisteIA valide le marché ! L\'État fait confiance à ton agence. Historique.',
+    unlockDialogue: 'MinisteIA valide le marché ! L\'État fait confiance à votre agence. Historique.',
   },
   // ── Nouveaux marchés : réservés aux parties après une vente de l'agence ──
   {

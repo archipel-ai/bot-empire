@@ -4,7 +4,7 @@
  */
 
 const fr = {
-  'meta.title':       'Bot Empire — Construis ton agence IA',
+  'meta.title':       'Bot Empire — Construisez votre agence IA',
   'meta.description': "Idle game d'agence IA. De freelancer solo à empire d'automatisation.",
 
   // Langue
@@ -179,15 +179,15 @@ const fr = {
 
   // Partage / import
   'share.title':      'PARTAGER MON AGENCE',
-  'share.subtitle':   "Ce lien contient ta progression complète. Envoie-le à toi-même pour changer d'appareil, migrer vers la PWA (écran d'accueil iPhone), ou partager tes stats !",
-  'share.tip':        "Sur iPhone : copie ce lien avant d'ajouter à l'écran d'accueil. La PWA et Safari ont des sauvegardes séparées — le cloud Firebase synchronise automatiquement.",
+  'share.subtitle':   "Ce lien contient votre progression complète. Envoyez-le-vous pour changer d'appareil, passer à la PWA (écran d'accueil iPhone), ou partager vos statistiques !",
+  'share.tip':        "Sur iPhone : copiez ce lien avant d'ajouter à l'écran d'accueil. La PWA et Safari ont des sauvegardes séparées — le cloud Firebase synchronise automatiquement.",
   'share.copy':       'Copier',
   'share.yes':        'Partagé : progression, agents, €, prestiges',
   'share.no':         'Non partagé : contrats, marché, statistiques',
   'share.close':      'Fermer',
   'import.title':     'SAUVEGARDE DÉTECTÉE',
-  'import.subtitle':  'Ce lien contient une progression. Veux-tu la charger ?',
-  'import.warning':   'Ta progression actuelle sera remplacée.',
+  'import.subtitle':  'Ce lien contient une progression. Voulez-vous la charger ?',
+  'import.warning':   'Votre progression actuelle sera remplacée.',
   'import.confirm':   'Charger cette save',
   'import.cancel':    'Garder la mienne',
   'import.treasury':  'Trésorerie',
@@ -232,9 +232,9 @@ const fr = {
   'offline.collect':  'Encaisser',
 
   // Bulles d'aide
-  'hint.firstClick':  "Clique ici pour exécuter ta première tâche : chaque clic rapporte de l'argent.",
-  'hint.firstAgent':  'Tu peux recruter ton premier agent ! Il travaille pour toi en continu, même hors ligne.',
-  'hint.firstClient': "Ton premier client a signé : il ajoute un bonus permanent. D'autres suivront si ta production grimpe.",
+  'hint.firstClick':  "Cliquez ici pour exécuter votre première tâche : chaque clic rapporte de l'argent.",
+  'hint.firstAgent':  'Vous pouvez recruter votre premier agent ! Il travaille pour vous en continu, même hors ligne.',
+  'hint.firstClient': "Votre premier client a signé : il ajoute un bonus permanent. D'autres suivront si votre production grimpe.",
   'hint.close':       "Fermer l'aide",
   'hint.tabAcademy':  "Nouvel onglet : l'Academy. Chaque leçon apprise donne un bonus permanent.",
   'hint.tabContracts': 'Nouvel onglet : les Contrats. Des missions urgentes, payées en secondes de revenu.',
