@@ -4,6 +4,8 @@
  * Enregistre les intervalles entre vos clics manuels (30s glissantes),
  * puis les rejoue automatiquement pendant 60s quand vous activez l'ÉCHO.
  * Cooldown : 2 minutes.
+ * Les clics sortent de la fenêtre au fil du temps, pas seulement au clic suivant :
+ * le compteur affiché baisse donc en continu pendant une pause.
  */
 
 export interface EchoState {
@@ -14,6 +16,7 @@ export interface EchoState {
   cooldownRemaining: number; // secondes restantes de cooldown
   clicksRecorded: number;    // nombre de clics enregistrés
   replayDuration: number;    // durée totale d'un rejeu (s)
+  cooldownDuration: number;  // durée totale de la recharge (s)
 }
 
 const RECORD_WINDOW_MS  = 30_000; // on mémorise les 30 dernières secondes
@@ -22,6 +25,10 @@ const REPLAY_DURATION_S = 60;     // durée du replay
 const BASE_COOLDOWN_S   = 120;    // 2 minutes de cooldown
 
 export class EchoSystem {
+  /** Horloge en ms, remplaçable dans les tests. */
+  private readonly now: () => number;
+  constructor(now: () => number = Date.now) { this.now = now; }
+
   private clickTimestamps: number[] = [];
   private intervals: number[]       = [];
 
@@ -46,11 +53,16 @@ export class EchoSystem {
 
   /** Appelé à chaque clic manuel du joueur. */
   recordClick(): void {
-    const now = Date.now();
-    this.clickTimestamps.push(now);
-    // Ne garder que les clics dans la fenêtre de 30s
-    this.clickTimestamps = this.clickTimestamps.filter(t => now - t <= RECORD_WINDOW_MS);
-    // Recalculer les intervalles
+    this.clickTimestamps.push(this.now());
+    this.prune();
+  }
+
+  /** Oublie les clics sortis de la fenêtre de 30 s et recalcule les intervalles. */
+  private prune(): void {
+    const now = this.now();
+    const kept = this.clickTimestamps.filter(t => now - t <= RECORD_WINDOW_MS);
+    if (kept.length === this.clickTimestamps.length && this.intervals.length === Math.max(0, kept.length - 1)) return;
+    this.clickTimestamps = kept;
     this.intervals = [];
     for (let i = 1; i < this.clickTimestamps.length; i++) {
       this.intervals.push((this.clickTimestamps[i] - this.clickTimestamps[i - 1]) / 1000);
@@ -58,6 +70,7 @@ export class EchoSystem {
   }
 
   canActivate(): boolean {
+    this.prune();
     return !this.active && this.cooldownTimer <= 0 && this.clickTimestamps.length >= MIN_CLICKS;
   }
 
@@ -111,6 +124,7 @@ export class EchoSystem {
       isOnCooldown:      this.cooldownTimer > 0,
       replayRemaining:   Math.ceil(this.replayTimer),
       cooldownRemaining: Math.ceil(this.cooldownTimer),
+      cooldownDuration:  BASE_COOLDOWN_S * this.cooldownMultiplier,
       clicksRecorded:    this.clickTimestamps.length,
       replayDuration:    this.replayDuration,
     };

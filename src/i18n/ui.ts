@@ -50,8 +50,8 @@ const fr = {
   'echo.activated':   '↺ Mode ÉCHO activé — vos clics se rejouent pendant {n} s !',
   'echo.active':      'Actif — {n}s restantes',
   'echo.cooldown':    'Recharge — {time}',
-  'echo.needClicks':  'Cliquez {n}× de plus pour activer',
-  'echo.ready':       '{n} clics mémorisés — prêt !',
+  'echo.needClicks':  'Cliquez {n}× de plus en 30 s pour activer',
+  'echo.ready':       '{n} clics des 30 dernières secondes — prêt !',
 
   // Tableau de bord
   'stats.title':      'TABLEAU DE BORD',
@@ -386,8 +386,8 @@ const en: Record<UiKey, string> = {
   'echo.activated':   '↺ ECHO mode on — your clicks replay for {n}s!',
   'echo.active':      'Active — {n}s left',
   'echo.cooldown':    'Recharging — {time}',
-  'echo.needClicks':  'Click {n}× more to enable',
-  'echo.ready':       '{n} clicks recorded — ready!',
+  'echo.needClicks':  'Click {n}× more within 30s to enable',
+  'echo.ready':       '{n} clicks in the last 30s — ready!',
 
   'stats.title':      'DASHBOARD',
   'stats.agents':     'Active agents',

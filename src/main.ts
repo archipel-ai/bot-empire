@@ -734,7 +734,7 @@ function updateEchoUI(): void {
     const s = es.cooldownRemaining % 60;
     setText(echoSub, t('echo.cooldown', { time: `${m}:${String(s).padStart(2,'0')}` }));
     echoBarWrap.style.display = '';
-    echoBarFill.style.width   = `${((120 - es.cooldownRemaining) / 120) * 100}%`;
+    echoBarFill.style.width   = `${((es.cooldownDuration - es.cooldownRemaining) / es.cooldownDuration) * 100}%`;
     setText(echoTimerLbl, `${m}:${String(s).padStart(2,'0')}`);
     echoBarFill.classList.add('cooldown');
   } else {
