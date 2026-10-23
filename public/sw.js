@@ -1,4 +1,4 @@
-const CACHE  = 'bot-empire-v4';
+const CACHE  = 'bot-empire-v5';
 // Chemins relatifs à l'emplacement du SW : fonctionne quel que soit le chemin de déploiement
 const SCOPE  = new URL('./', self.location.href).pathname;
 const ASSETS = [

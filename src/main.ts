@@ -67,7 +67,7 @@ const lead        = new LeadSystem();
 const leadLetter  = new LeadLetter(() => catchLead());
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 const stats       = new StatsSystem();
-const GAME_VERSION = '1.2';
+const GAME_VERSION = '1.3';
 const REFERENCE_CHECK_S = 1; // le carnet vérifie ses conditions une fois par seconde
 const REFERENCE_GROUP_FROM = 3; // à partir de 3 références d'un coup (1re visite en 1.2) : une seule notification
 let referenceTimer = 0;
